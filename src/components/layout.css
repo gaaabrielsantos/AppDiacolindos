@@ -139,6 +139,8 @@
   margin-left: 260px;
   padding: 14px 18px 30px;
   background: transparent;
+  max-width: 100%;
+  overflow-x: hidden;
   transition:
     margin-left 0.3s ease,
     padding-left 0.3s ease,
@@ -155,6 +157,25 @@
   align-items: center;
   gap: 10px;
   margin: 2px 0 12px;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 1rem;
+}
+
+@media (min-width: 1025px) {
+  .mobile-menu-toggle,
+  .menu-toggle,
+  .open-menu-button,
+  .close-menu-button {
+    display: none !important;
+  }
 }
 
 .theme-toggle {
@@ -208,6 +229,9 @@
 .content-inner {
   display: grid;
   gap: 22px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .page-transition {
@@ -277,6 +301,16 @@
     padding: 10px 12px 22px;
   }
 
+  .content-header {
+    justify-content: space-between;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .sidebar-overlay {
     display: block;
     position: fixed;
@@ -301,7 +335,7 @@
   }
 
   .content-header {
-    justify-content: flex-end;
+    justify-content: space-between;
     position: sticky;
     top: 0;
     z-index: 50;

@@ -49,6 +49,11 @@ export function Layout({ children }: { children: ReactNode }) {
     setTheme((current) => (current === 'light' ? 'dark' : 'light'));
   };
 
+  const toggleSidebar = () => {
+    clearTimers();
+    setSidebarOpen((current) => !current);
+  };
+
   const clearTimers = () => {
     if (openTimerRef.current) {
       window.clearTimeout(openTimerRef.current);
@@ -90,8 +95,7 @@ export function Layout({ children }: { children: ReactNode }) {
     const target = event.target as HTMLElement;
     if (target.closest('a')) return;
 
-    clearTimers();
-    setSidebarOpen((current) => !current);
+    toggleSidebar();
   };
 
   useEffect(() => {
@@ -120,6 +124,16 @@ export function Layout({ children }: { children: ReactNode }) {
       {isMobile && sidebarOpen ? <button className="sidebar-overlay" aria-label="Fechar menu" onClick={() => setSidebarOpen(false)} /> : null}
       <main className="content">
         <header className="content-header">
+          {isMobile ? (
+            <button
+              className="small-button button secondary mobile-menu-toggle"
+              onClick={toggleSidebar}
+              title={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
+            >
+              {sidebarOpen ? '✕' : '☰'}
+            </button>
+          ) : null}
           <button
             className="small-button button secondary theme-toggle"
             onClick={toggleTheme}
@@ -131,7 +145,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </span>
           </button>
         </header>
-        <section key={location.pathname} className="content-inner page-transition">{children}</section>
+        <section key={location.pathname} className="content-inner main-content page-transition">{children}</section>
       </main>
     </div>
   );

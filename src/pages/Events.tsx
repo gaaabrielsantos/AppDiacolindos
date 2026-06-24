@@ -233,7 +233,7 @@ export function EventsPage() {
       <h1 className="page-title">Configuração de eventos</h1>
       <div className="card">
           <h2>{editingId ? 'Editar evento' : 'Adicionar evento'}</h2>
-          <div className="input-group">
+          <div className="input-group form-grid">
             <label>
               Nome do evento
               <input value={form.name ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
@@ -312,17 +312,17 @@ export function EventsPage() {
               />
             </label>
 
-            <label>
+            <label className="full-width">
               Observações
               <textarea rows={3} value={form.notes ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label className="full-width" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="checkbox" checked={form.active ?? true} onChange={(event) => setForm((prev) => ({ ...prev, active: event.target.checked }))} />
               Evento ativo
             </label>
 
-            <div className="form-actions">
+            <div className="form-actions full-width">
               <button className="button" onClick={handleCreateOrUpdate}>{editingId ? 'Salvar edição' : 'Salvar evento'}</button>
               {editingId ? <button className="button secondary" onClick={resetForm}>Cancelar</button> : null}
             </div>
@@ -332,7 +332,7 @@ export function EventsPage() {
       <div className="card">
         <h2>Eventos configurados</h2>
         <div className="table-wrap">
-        <table className="table">
+        <table className="table responsive-table">
           <thead>
             <tr>
               <th>Evento</th>
@@ -348,14 +348,14 @@ export function EventsPage() {
           <tbody>
             {eventRules.map((rule) => (
               <tr key={rule.id}>
-                <td>{rule.name}</td>
-                <td>{rule.type === 'especifico' ? rule.date : rule.recurrence === 'mensal' ? `Dia ${rule.dayOfMonth ?? '-'}` : rule.recurrence === 'anual' || rule.recurrence === 'nenhuma' ? rule.date : rule.weekday}</td>
-                <td>{rule.time}</td>
-                <td>{rule.requiredMembers}</td>
-                <td>{formatEventType(rule.type)}</td>
-                <td>{formatRecurrence(rule)}</td>
-                <td>{rule.active === false ? 'Inativo' : 'Ativo'}</td>
-                <td className="actions-cell">
+                <td data-label="Evento">{rule.name}</td>
+                <td data-label="Data ou dia">{rule.type === 'especifico' ? rule.date : rule.recurrence === 'mensal' ? `Dia ${rule.dayOfMonth ?? '-'}` : rule.recurrence === 'anual' || rule.recurrence === 'nenhuma' ? rule.date : rule.weekday}</td>
+                <td data-label="Horário">{rule.time}</td>
+                <td data-label="Qtd. necessária">{rule.requiredMembers}</td>
+                <td data-label="Tipo">{formatEventType(rule.type)}</td>
+                <td data-label="Recorrência">{formatRecurrence(rule)}</td>
+                <td data-label="Status">{rule.active === false ? 'Inativo' : 'Ativo'}</td>
+                <td data-label="Ações" className="actions-cell">
                   <button className="small-button button success" onClick={() => startEdit(rule.id)}>Editar</button>
                   <button className="small-button button" onClick={() => toggleActive(rule.id)}>
                     {rule.active === false ? 'Ativar' : 'Desativar'}

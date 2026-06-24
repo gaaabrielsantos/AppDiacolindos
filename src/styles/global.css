@@ -107,7 +107,10 @@ html,
 body,
 #root {
   margin: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -129,6 +132,7 @@ input,
 textarea,
 select {
   font: inherit;
+  max-width: 100%;
 }
 
 button {
@@ -145,11 +149,21 @@ body {
 
 img {
   max-width: 100%;
+  height: auto;
 }
 
 .container {
-  width: min(1200px, calc(100% - 32px));
+  width: 100%;
+  max-width: 1200px;
+  padding-inline: 16px;
   margin: 0 auto;
+}
+
+.main-content {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
 }
 
 .page-title {
@@ -169,6 +183,15 @@ img {
   padding: 18px;
   transition: all 0.25s ease-in-out;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 16px;
+  width: 100%;
 }
 
 .button {
@@ -263,6 +286,15 @@ input[type="checkbox"] {
   margin-bottom: 16px;
 }
 
+.form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+
+.full-width {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
 .input-group label {
   display: flex;
   flex-direction: column;
@@ -300,9 +332,24 @@ input[type="checkbox"] {
   flex-wrap: wrap;
 }
 
+.form-inline-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.form-inline-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
@@ -311,8 +358,12 @@ input[type="checkbox"] {
   background: var(--bg-card);
   border-radius: 12px;
   overflow: hidden;
-  min-width: 760px;
+  min-width: 680px;
   color: var(--text-primary);
+}
+
+.table.responsive-table {
+  min-width: 0;
 }
 
 .table th,
@@ -321,6 +372,8 @@ input[type="checkbox"] {
   border-bottom: 1px solid var(--border-color);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .table th {
@@ -413,16 +466,27 @@ input[type="checkbox"] {
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(110px, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
-  overflow-x: auto;
+  width: 100%;
 }
 
 .calendar-weekdays {
   display: grid;
-  grid-template-columns: repeat(7, minmax(110px, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
-  overflow-x: auto;
+  width: 100%;
+}
+
+.calendar-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.calendar-day-card {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .modal-overlay {
@@ -437,9 +501,10 @@ input[type="checkbox"] {
 }
 
 .modal-content {
-  width: min(760px, calc(100vw - 20px));
-  max-height: 88vh;
-  overflow: auto;
+  width: min(95vw, 760px);
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
@@ -447,10 +512,14 @@ input[type="checkbox"] {
 
 .calendar-day {
   min-height: 44px;
+  min-width: 0;
   border: 1px solid var(--calendar-day-border);
   background: var(--calendar-day-bg);
   color: var(--calendar-day-text);
   font-weight: 500;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .calendar-day.outside-month {
@@ -499,23 +568,79 @@ input[type="checkbox"] {
 .grid-3 {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .grid-2 {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 @media (max-width: 900px) {
-  .grid-3,
-  .grid-2 {
-    grid-template-columns: 1fr;
+  .container {
+    padding-inline: 12px;
   }
 
-  .container {
-    width: min(1200px, calc(100% - 20px));
+  .main-content {
+    padding: 16px;
+  }
+
+  .table {
+    min-width: 560px;
+  }
+
+  .table.responsive-table,
+  .table.responsive-table thead,
+  .table.responsive-table tbody,
+  .table.responsive-table tr,
+  .table.responsive-table th,
+  .table.responsive-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table.responsive-table thead {
+    display: none;
+  }
+
+  .table.responsive-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .table.responsive-table tr {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-card);
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  .table.responsive-table td {
+    border: none;
+    padding: 6px 4px;
+    text-align: left;
+  }
+
+  .table.responsive-table td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .table.responsive-table .actions-cell {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  .table.responsive-table .actions-cell .button,
+  .table.responsive-table .actions-cell .small-button {
+    width: 100%;
   }
 }
 
@@ -525,8 +650,9 @@ input[type="checkbox"] {
     margin-bottom: 14px;
   }
 
-  .button,
-  .small-button {
+  .form-actions .button,
+  .form-actions .small-button,
+  .export-actions .button {
     width: 100%;
   }
 
@@ -545,6 +671,26 @@ input[type="checkbox"] {
     gap: 8px;
   }
 
+  .form-inline-grid-3,
+  .form-inline-grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-grid,
+  .calendar-weekdays {
+    gap: 6px;
+  }
+
+  .calendar-day,
+  .calendar-day-card {
+    padding: 6px;
+    font-size: 0.78rem;
+  }
+
   .export-actions {
     flex-direction: column;
     align-items: stretch;
@@ -557,7 +703,7 @@ input[type="checkbox"] {
 
 @media (max-width: 480px) {
   .table {
-    min-width: 640px;
+    min-width: 520px;
   }
 
   .input-group {
@@ -566,5 +712,19 @@ input[type="checkbox"] {
 
   .event-options-grid {
     grid-template-columns: 1fr;
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+
+  .calendar-grid,
+  .calendar-weekdays {
+    gap: 4px;
+  }
+
+  .calendar-day,
+  .calendar-day-card {
+    font-size: 0.72rem;
   }
 }

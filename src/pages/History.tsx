@@ -110,7 +110,7 @@ export function HistoryPage() {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Escalas geradas (PDFs salvos)</h2>
         <div className="table-wrap">
-        <table className="table">
+        <table className="table responsive-table">
           <thead>
             <tr>
               <th>Data de geração</th>
@@ -128,13 +128,13 @@ export function HistoryPage() {
             ) : (
               scalePdfHistory.map((record) => (
                 <tr key={record.id}>
-                  <td>{new Date(record.generatedAt).toLocaleString('pt-BR')}</td>
-                  <td>{record.periodStart} a {record.periodEnd}</td>
-                  <td>{record.fileName}</td>
-                  <td>{record.status}</td>
-                  <td>{record.eventsCount}</td>
-                  <td>{record.usedMembersCount}</td>
-                  <td className="actions-cell">
+                  <td data-label="Data de geração">{new Date(record.generatedAt).toLocaleString('pt-BR')}</td>
+                  <td data-label="Período">{record.periodStart} a {record.periodEnd}</td>
+                  <td data-label="Arquivo">{record.fileName}</td>
+                  <td data-label="Status">{record.status}</td>
+                  <td data-label="Eventos">{record.eventsCount}</td>
+                  <td data-label="Integrantes">{record.usedMembersCount}</td>
+                  <td data-label="Ações" className="actions-cell">
                     <button className="small-button button success" onClick={() => openPdf(record.pdfDataUrl)}>Abrir PDF</button>
                     <button className="small-button button" onClick={() => downloadPdf(record.pdfDataUrl, record.fileName)}>Baixar PDF</button>
                     <button className="small-button button danger" onClick={() => handleDeleteRecord(record.id)}>Deletar histórico</button>
@@ -150,7 +150,7 @@ export function HistoryPage() {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Alterações manuais recentes</h2>
         <div className="table-wrap">
-        <table className="table">
+        <table className="table responsive-table">
           <thead>
             <tr>
               <th>Data</th>
@@ -165,10 +165,10 @@ export function HistoryPage() {
             ) : (
               filteredHistory.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.eventDate} - {item.eventTime}</td>
-                  <td>{item.eventName}</td>
-                  <td>{item.originalMemberId}{' -> '}{item.substituteMemberId}</td>
-                  <td>{item.reason ?? 'Sem motivo informado'}</td>
+                  <td data-label="Data">{item.eventDate} - {item.eventTime}</td>
+                  <td data-label="Evento">{item.eventName}</td>
+                  <td data-label="Alteração">{item.originalMemberId}{' -> '}{item.substituteMemberId}</td>
+                  <td data-label="Motivo">{item.reason ?? 'Sem motivo informado'}</td>
                 </tr>
               ))
             )}

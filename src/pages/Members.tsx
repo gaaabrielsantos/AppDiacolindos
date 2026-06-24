@@ -117,7 +117,7 @@ export function MembersPage() {
       <h1 className="page-title">Cadastro de integrantes</h1>
       <div className="card">
         <h2>{editingId ? 'Editar integrante' : 'Adicionar integrante'}</h2>
-        <div className="input-group">
+        <div className="input-group form-grid">
           <label>
             Nome (obrigatório)
             <input value={form.name ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
@@ -131,7 +131,7 @@ export function MembersPage() {
             <input value={form.phone ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
           </label>
 
-          <div>
+          <div className="full-width">
             <small style={{ fontWeight: 700 }}>Indisponibilidade por evento (opcional)</small>
             <div className="event-options-grid">
               {eventRules.map((eventRule) => {
@@ -146,18 +146,18 @@ export function MembersPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             <small>Indisponibilidade por data específica</small>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8 }}>
+            <div className="form-inline-grid-3">
               <input type="date" value={dateRestriction.date} onChange={(event) => setDateRestriction((prev) => ({ ...prev, date: event.target.value }))} />
               <input placeholder="Observação (opcional)" value={dateRestriction.note} onChange={(event) => setDateRestriction((prev) => ({ ...prev, note: event.target.value }))} />
               <button className="small-button button" onClick={addDateUnavailability}>Adicionar</button>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             <small>Indisponibilidade por período</small>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8 }}>
+            <div className="form-inline-grid-4">
               <input type="date" value={periodRestriction.from} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, from: event.target.value }))} />
               <input type="date" value={periodRestriction.to} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, to: event.target.value }))} />
               <input placeholder="Observação (opcional)" value={periodRestriction.note} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, note: event.target.value }))} />
@@ -165,12 +165,12 @@ export function MembersPage() {
             </div>
           </div>
 
-          <label>
+          <label className="full-width">
             Observações (opcional)
             <textarea rows={3} value={form.notes ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
           </label>
 
-          <div className="form-actions">
+          <div className="form-actions full-width">
             <button className="button" onClick={handleCreateOrUpdate}>
               {editingId ? 'Salvar alterações' : 'Adicionar integrante'}
             </button>
@@ -186,7 +186,7 @@ export function MembersPage() {
       <div className="card">
         <h2>Lista de integrantes</h2>
         <div className="table-wrap">
-        <table className="table">
+        <table className="table responsive-table">
           <thead>
             <tr>
               <th>Nome</th>
@@ -199,11 +199,11 @@ export function MembersPage() {
           <tbody>
             {members.map((member) => (
               <tr key={member.id}>
-                <td><strong>{member.nickname ?? member.name}</strong> - {member.name}</td>
-                <td>{member.phone || '-'}</td>
-                <td>{member.active ? 'Ativo' : 'Inativo'}</td>
-                <td>{member.unavailability.length === 0 ? 'Sem restrição' : member.unavailability.length}</td>
-                <td className="actions-cell">
+                <td data-label="Nome"><strong>{member.nickname ?? member.name}</strong> - {member.name}</td>
+                <td data-label="Telefone">{member.phone || '-'}</td>
+                <td data-label="Status">{member.active ? 'Ativo' : 'Inativo'}</td>
+                <td data-label="Indisponibilidades">{member.unavailability.length === 0 ? 'Sem restrição' : member.unavailability.length}</td>
+                <td data-label="Ações" className="actions-cell">
                   <button className="small-button button success" onClick={() => startEdit(member.id)}>Editar</button>
                   <button className="small-button button" onClick={() => toggleActive(member.id)}>
                     {member.active ? 'Desativar' : 'Ativar'}

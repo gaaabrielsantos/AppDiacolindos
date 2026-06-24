@@ -59,12 +59,12 @@ export function DashboardPage() {
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Gráfico de participações por integrante</h2>
         <p className="muted-text">Comparação visual de participações na escala atual.</p>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, overflowX: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, flexWrap: 'wrap' }}>
           {chartData.map((item) => {
             const height = `${(item.value / maxValue) * 180}px`;
             const highlight = shouldShowRedAlert && item.value === maxParticipation;
             return (
-              <div key={item.id} style={{ flex: 1, minWidth: 64, textAlign: 'center' }}>
+              <div key={item.id} style={{ flex: '1 1 64px', minWidth: 64, textAlign: 'center', maxWidth: 120 }}>
                 <div style={{ fontSize: 12, marginBottom: 6 }}>{item.value}</div>
                 <div
                   title={`${item.name}: ${item.value}`}
