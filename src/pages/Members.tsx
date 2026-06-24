@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Member } from '../types';
+import { useState } from 'react';
+import { Member, Unavailability } from '../types';
 import { useAppState } from '../hooks/useAppState';
 
 export function MembersPage() {
@@ -8,56 +8,50 @@ export function MembersPage() {
     name: '',
     nickname: '',
     phone: '',
-    email: '',
     active: true,
-    eventAvailability: [],
-    dateExceptions: [],
+    unavailability: [],
     notes: '',
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState('');
-
-  const activeMembers = useMemo(() => members.filter((member) => member.active).length, [members]);
+  const [dateRestriction, setDateRestriction] = useState({ date: '', note: '' });
+  const [periodRestriction, setPeriodRestriction] = useState({ from: '', to: '', note: '' });
 
   const resetForm = () => {
-    setForm({ name: '', nickname: '', phone: '', email: '', active: true, eventAvailability: [], dateExceptions: [], notes: '' });
+    setForm({ name: '', nickname: '', phone: '', active: true, unavailability: [], notes: '' });
+    setDateRestriction({ date: '', note: '' });
+    setPeriodRestriction({ from: '', to: '', note: '' });
     setEditingId(null);
   };
 
   const handleCreateOrUpdate = () => {
     if (!form.name?.trim()) return;
 
-    if (editingId) {
-      setMembers((current) => current.map((m) => (m.id === editingId ? { ...m, ...form, name: form.name!.trim() } : m)));
-      resetForm();
-      return;
-    }
-
-    const newMember: Member = {
-      id: `member-${crypto.randomUUID()}`,
+    const payload: Member = {
+      id: editingId ?? `member-${crypto.randomUUID()}`,
       name: form.name.trim(),
-      nickname: form.nickname?.trim() || form.name.trim().split(' ')[0],
-      phone: form.phone?.trim(),
-      email: form.email?.trim(),
+      nickname: form.nickname?.trim() || undefined,
+      phone: form.phone?.trim() || undefined,
       active: form.active ?? true,
-      eventAvailability: form.eventAvailability ?? [],
-      dateExceptions: form.dateExceptions ?? [],
-      notes: form.notes,
+      unavailability: form.unavailability ?? [],
+      notes: form.notes?.trim() || undefined,
     };
 
-    setMembers((current) => [...current, newMember]);
-    if (newMember.eventAvailability.length === 0) {
-      setInfoMessage('Este integrante ainda não possui eventos disponíveis configurados.');
-      window.setTimeout(() => setInfoMessage(''), 3000);
+    if (editingId) {
+      setMembers((current) => current.map((member) => (member.id === editingId ? payload : member)));
+    } else {
+      setMembers((current) => [...current, payload]);
     }
+
     resetForm();
   };
 
   const startEdit = (memberId: string) => {
-    const m = members.find((x) => x.id === memberId);
-    if (!m) return;
-    setForm({ ...m });
+    const selected = members.find((member) => member.id === memberId);
+    if (!selected) return;
+    setForm({ ...selected });
     setEditingId(memberId);
+    setDateRestriction({ date: '', note: '' });
+    setPeriodRestriction({ from: '', to: '', note: '' });
   };
 
   const toggleActive = (id: string) => {
@@ -65,115 +59,162 @@ export function MembersPage() {
   };
 
   const deleteMember = (memberId: string) => {
-    const inSchedule = schedule.some((s) => s.memberIds.includes(memberId));
+    const inSchedule = schedule.some((item) => item.memberIds.includes(memberId));
     if (inSchedule) {
       alert('Este integrante já está vinculado a uma escala. Para manter histórico, prefira desativá-lo.');
       return;
     }
     if (!confirm('Tem certeza que deseja deletar este integrante? Essa ação não poderá ser desfeita.')) return;
-    setMembers((current) => current.filter((m) => m.id !== memberId));
+    setMembers((current) => current.filter((member) => member.id !== memberId));
   };
 
-  const toggleEventAvailabilityInForm = (eventId: string) => {
-    const set = new Set(form.eventAvailability ?? []);
-    if (set.has(eventId)) set.delete(eventId); else set.add(eventId);
-    setForm((prev) => ({ ...prev, eventAvailability: Array.from(set) }));
+  const addEventUnavailability = (eventId: string) => {
+    const current = form.unavailability ?? [];
+    const exists = current.some((item) => item.type === 'evento' && item.eventId === eventId);
+    if (exists) {
+      setForm((prev) => ({
+        ...prev,
+        unavailability: (prev.unavailability ?? []).filter((item) => !(item.type === 'evento' && item.eventId === eventId)),
+      }));
+      return;
+    }
+
+    const newRestriction: Unavailability = {
+      id: `unv-${crypto.randomUUID()}`,
+      type: 'evento',
+      eventId,
+    };
+    setForm((prev) => ({ ...prev, unavailability: [...(prev.unavailability ?? []), newRestriction] }));
+  };
+
+  const addDateUnavailability = () => {
+    if (!dateRestriction.date) return;
+    const newRestriction: Unavailability = {
+      id: `unv-${crypto.randomUUID()}`,
+      type: 'data',
+      date: dateRestriction.date,
+      note: dateRestriction.note || undefined,
+    };
+    setForm((prev) => ({ ...prev, unavailability: [...(prev.unavailability ?? []), newRestriction] }));
+    setDateRestriction({ date: '', note: '' });
+  };
+
+  const addPeriodUnavailability = () => {
+    if (!periodRestriction.from || !periodRestriction.to) return;
+    const newRestriction: Unavailability = {
+      id: `unv-${crypto.randomUUID()}`,
+      type: 'periodo',
+      from: periodRestriction.from,
+      to: periodRestriction.to,
+      note: periodRestriction.note || undefined,
+    };
+    setForm((prev) => ({ ...prev, unavailability: [...(prev.unavailability ?? []), newRestriction] }));
+    setPeriodRestriction({ from: '', to: '', note: '' });
   };
 
   return (
     <div className="container">
       <h1 className="page-title">Cadastro de integrantes</h1>
-      <div className="grid-2">
-        <div className="card">
-          <h2>{editingId ? 'Editar integrante' : 'Adicionar integrante'}</h2>
-          <div className="input-group">
-            <label>
-              Nome (obrigatório)
-              <input value={form.name ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-            </label>
-            <label>
-              Apelido (opcional)
-              <input value={form.nickname ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, nickname: event.target.value }))} />
-            </label>
-            <label>
-              Telefone (opcional)
-              <input value={form.phone ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
-            </label>
-            <label>
-              E-mail (opcional)
-              <input value={form.email ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
-            </label>
-            <div>
-              <small>Disponibilidade por evento (opcional)</small>
-              <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-                {eventRules.map((eventRule) => (
-                  <label key={eventRule.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={(form.eventAvailability ?? []).includes(eventRule.id)}
-                      onChange={() => toggleEventAvailabilityInForm(eventRule.id)}
-                    />
-                    {eventRule.name} - {eventRule.weekday} {eventRule.time}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <label>
-              Observações (opcional)
-              <textarea rows={3} value={form.notes ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
-            </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="button" onClick={handleCreateOrUpdate} style={{ width: 'fit-content' }}>
-                {editingId ? 'Salvar alterações' : 'Adicionar integrante'}
-              </button>
-              {editingId ? (
-                <button className="button" style={{ background: '#64748b', width: 'fit-content' }} onClick={resetForm}>
-                  Cancelar
-                </button>
-              ) : null}
-            </div>
-            {infoMessage ? <p style={{ color: '#92400e' }}>{infoMessage}</p> : null}
-          </div>
-        </div>
+      <div className="card">
+        <h2>{editingId ? 'Editar integrante' : 'Adicionar integrante'}</h2>
+        <div className="input-group">
+          <label>
+            Nome (obrigatório)
+            <input value={form.name ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+          </label>
+          <label>
+            Apelido (opcional)
+            <input value={form.nickname ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, nickname: event.target.value }))} />
+          </label>
+          <label>
+            Telefone (opcional)
+            <input value={form.phone ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
+          </label>
 
-        <div className="card">
-          <h2>Resumo rápido</h2>
-          <p>Total de integrantes ativos: <strong>{activeMembers}</strong></p>
-          <p>Total de integrantes cadastrados: <strong>{members.length}</strong></p>
-          <p>Total de integrantes inativos: <strong>{members.length - activeMembers}</strong></p>
+          <div>
+            <small style={{ fontWeight: 700 }}>Indisponibilidade por evento (opcional)</small>
+            <div className="event-options-grid">
+              {eventRules.map((eventRule) => {
+                const checked = (form.unavailability ?? []).some((item) => item.type === 'evento' && item.eventId === eventRule.id);
+                return (
+                  <label key={eventRule.id} className="event-option-item">
+                    <input type="checkbox" checked={checked} onChange={() => addEventUnavailability(eventRule.id)} />
+                    <span><strong>{eventRule.name}</strong> - {eventRule.type === 'especifico' ? eventRule.date : eventRule.weekday} {eventRule.time}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+            <small>Indisponibilidade por data específica</small>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8 }}>
+              <input type="date" value={dateRestriction.date} onChange={(event) => setDateRestriction((prev) => ({ ...prev, date: event.target.value }))} />
+              <input placeholder="Observação (opcional)" value={dateRestriction.note} onChange={(event) => setDateRestriction((prev) => ({ ...prev, note: event.target.value }))} />
+              <button className="small-button button" onClick={addDateUnavailability}>Adicionar</button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+            <small>Indisponibilidade por período</small>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8 }}>
+              <input type="date" value={periodRestriction.from} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, from: event.target.value }))} />
+              <input type="date" value={periodRestriction.to} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, to: event.target.value }))} />
+              <input placeholder="Observação (opcional)" value={periodRestriction.note} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, note: event.target.value }))} />
+              <button className="small-button button" onClick={addPeriodUnavailability}>Adicionar</button>
+            </div>
+          </div>
+
+          <label>
+            Observações (opcional)
+            <textarea rows={3} value={form.notes ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
+          </label>
+
+          <div className="form-actions">
+            <button className="button" onClick={handleCreateOrUpdate}>
+              {editingId ? 'Salvar alterações' : 'Adicionar integrante'}
+            </button>
+            {editingId ? (
+              <button className="button secondary" onClick={resetForm}>
+                Cancelar
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
       <div className="card">
         <h2>Lista de integrantes</h2>
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Contato</th>
+              <th>Telefone</th>
               <th>Status</th>
-              <th>Eventos disponíveis</th>
+              <th>Indisponibilidades</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {members.map((member) => (
               <tr key={member.id}>
-                <td>{member.nickname ?? member.name} - {member.name}</td>
-                <td>{member.phone || '-'} {member.email ? `| ${member.email}` : ''}</td>
+                <td><strong>{member.nickname ?? member.name}</strong> - {member.name}</td>
+                <td>{member.phone || '-'}</td>
                 <td>{member.active ? 'Ativo' : 'Inativo'}</td>
-                <td>{member.eventAvailability.length === 0 ? 'Sem restrição' : member.eventAvailability.length}</td>
-                <td style={{ display: 'flex', gap: 8 }}>
-                  <button className="small-button button" style={{ background: '#0ea5a4' }} onClick={() => startEdit(member.id)}>Editar</button>
-                  <button className="small-button button" style={{ background: '#2563eb' }} onClick={() => toggleActive(member.id)}>
+                <td>{member.unavailability.length === 0 ? 'Sem restrição' : member.unavailability.length}</td>
+                <td className="actions-cell">
+                  <button className="small-button button success" onClick={() => startEdit(member.id)}>Editar</button>
+                  <button className="small-button button" onClick={() => toggleActive(member.id)}>
                     {member.active ? 'Desativar' : 'Ativar'}
                   </button>
-                  <button className="small-button button" style={{ background: '#dc2626' }} onClick={() => deleteMember(member.id)}>Deletar</button>
+                  <button className="small-button button danger" onClick={() => deleteMember(member.id)}>Deletar</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -15,10 +15,23 @@ function getMonthMatrix(year: number, month: number) {
   return matrix;
 }
 
+function formatBrDate(value: string) {
+  if (!value) return '';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 export function SchedulePage() {
   const { schedule, members, alerts, history, generateSchedule, defaultPeriod, updateScheduleMembers } = useAppState();
   const [startDate, setStartDate] = useState(defaultPeriod.startDate);
   const [endDate, setEndDate] = useState(defaultPeriod.endDate);
+  const [rangeStart, setRangeStart] = useState(defaultPeriod.startDate);
+  const [rangeEnd, setRangeEnd] = useState(defaultPeriod.endDate);
+  const [periodPickerOpen, setPeriodPickerOpen] = useState(false);
+  const [periodCursor, setPeriodCursor] = useState(() => {
+    const base = new Date(defaultPeriod.startDate);
+    return { year: base.getFullYear(), month: base.getMonth() };
+  });
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -34,6 +47,7 @@ export function SchedulePage() {
   }, [defaultPeriod.endDate, defaultPeriod.startDate, generateSchedule, schedule.length]);
 
   const monthMatrix = useMemo(() => getMonthMatrix(cursor.year, cursor.month), [cursor]);
+  const periodMatrix = useMemo(() => getMonthMatrix(periodCursor.year, periodCursor.month), [periodCursor]);
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, typeof schedule> = {};
@@ -50,8 +64,13 @@ export function SchedulePage() {
       map[item.id] = members
         .filter((member) => {
           if (!member.active) return false;
-          if (member.eventAvailability.length > 0 && !member.eventAvailability.includes(item.eventRuleId)) return false;
-          return true;
+          if (!member.unavailability || member.unavailability.length === 0) return true;
+          return !member.unavailability.some((u) => {
+            if (u.type === 'evento' && u.eventId === item.eventRuleId) return true;
+            if (u.type === 'data' && u.date === item.date) return true;
+            if (u.type === 'periodo' && u.from && u.to) return item.date >= u.from && item.date <= u.to;
+            return false;
+          });
         })
         .map((member) => member.id);
     });
@@ -70,6 +89,57 @@ export function SchedulePage() {
 
   const namesForEvent = (memberIds: string[]) => memberIds.map((id) => members.find((m) => m.id === id)?.nickname || members.find((m) => m.id === id)?.name || id);
 
+  const periodLabel = rangeStart && rangeEnd
+    ? `${formatBrDate(rangeStart)} até ${formatBrDate(rangeEnd)}`
+    : 'Selecionar início e término da escala';
+
+  const openPeriodPrev = () => setPeriodCursor((current) => {
+    const d = new Date(current.year, current.month - 1, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const openPeriodNext = () => setPeriodCursor((current) => {
+    const d = new Date(current.year, current.month + 1, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const pickPeriodDate = (dateValue: string) => {
+    if (!rangeStart || (rangeStart && rangeEnd)) {
+      setRangeStart(dateValue);
+      setRangeEnd('');
+      return;
+    }
+
+    if (dateValue < rangeStart) {
+      setRangeEnd(rangeStart);
+      setRangeStart(dateValue);
+      setStartDate(dateValue);
+      setEndDate(rangeStart);
+      setPeriodPickerOpen(false);
+      return;
+    }
+
+    setRangeEnd(dateValue);
+    setStartDate(rangeStart);
+    setEndDate(dateValue);
+    setPeriodPickerOpen(false);
+  };
+
+  const isRangeStart = (dateValue: string) => rangeStart === dateValue;
+  const isRangeEnd = (dateValue: string) => rangeEnd === dateValue;
+  const isInRange = (dateValue: string) => Boolean(rangeStart && rangeEnd && dateValue > rangeStart && dateValue < rangeEnd);
+
+  const handleGenerateSchedule = () => {
+    if (!rangeStart || !rangeEnd) {
+      alert('Selecione a data inicial e a data final da escala antes de gerar.');
+      return;
+    }
+
+    setStartDate(rangeStart);
+    setEndDate(rangeEnd);
+    generateSchedule(rangeStart, rangeEnd);
+  };
+
   const applyManualUpdate = () => {
     if (!editingEventId) return;
     updateScheduleMembers(editingEventId, memberSelection, 'Alteração manual na tela de escala');
@@ -77,24 +147,60 @@ export function SchedulePage() {
     setMemberSelection([]);
   };
 
+  const startEventEdit = (eventId: string, memberIds: string[], date: string) => {
+    setSelectedDate(date);
+    setEditingEventId(eventId);
+    setMemberSelection(memberIds);
+  };
+
   return (
     <div className="container">
       <h1 className="page-title">Escala</h1>
 
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Período da escala</h2>
-        <div className="grid-2">
-          <label>
-            Data inicial
-            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-          </label>
-          <label>
-            Data final
-            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-          </label>
+      <div className="card" style={{ maxWidth: 760, margin: '0 auto' }}>
+        <h2 style={{ marginTop: 0, textAlign: 'center', textTransform: 'uppercase' }}>Período da escala</h2>
+        <div className="input-group" style={{ marginBottom: 0 }}>
+          <button className="button secondary" onClick={() => setPeriodPickerOpen((current) => !current)}>
+            {periodLabel}
+          </button>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <button className="button" onClick={() => generateSchedule(startDate, endDate)}>Gerar Escala</button>
+        {periodPickerOpen ? (
+          <div className="card" style={{ marginTop: 12, padding: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              <button className="small-button button secondary" onClick={openPeriodPrev}>Anterior</button>
+              <strong>{new Date(periodCursor.year, periodCursor.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
+              <button className="small-button button secondary" onClick={openPeriodNext}>Próximo</button>
+            </div>
+            <div className="calendar-weekdays" style={{ marginBottom: 8 }}>
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                <div key={d} style={{ textAlign: 'center', fontWeight: 700 }}>{d}</div>
+              ))}
+            </div>
+            <div className="calendar-grid">
+              {periodMatrix.map((date, idx) => {
+                const dateValue = date.toISOString().slice(0, 10);
+                const isStart = isRangeStart(dateValue);
+                const isEnd = isRangeEnd(dateValue);
+                const inRange = isInRange(dateValue);
+                const outsideMonth = date.getMonth() !== periodCursor.month;
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`small-button button secondary calendar-day ${outsideMonth ? 'outside-month' : ''} ${inRange ? 'in-range' : ''} ${isStart || isEnd ? 'selected' : ''}`}
+                    style={{ fontWeight: isStart || isEnd ? 700 : 500 }}
+                    onClick={() => pickPeriodDate(dateValue)}
+                  >
+                    {date.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+        <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
+          <button className="button" onClick={handleGenerateSchedule}>Gerar Escala</button>
         </div>
       </div>
 
@@ -107,17 +213,6 @@ export function SchedulePage() {
         </div>
       ) : null}
 
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Lista de eventos escalados</h2>
-        <ul>
-          {schedule.map((item) => (
-            <li key={item.id}>
-              {item.date} - {item.time} - {item.eventName} ({item.memberIds.length}/{item.requiredMembers})
-            </li>
-          ))}
-        </ul>
-      </div>
-
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="small-button button" onClick={openPrev}>Anterior</button>
@@ -129,12 +224,12 @@ export function SchedulePage() {
       </div>
 
       <div style={{ display: 'grid', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+        <div className="calendar-weekdays">
           {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
             <div key={d} style={{ textAlign: 'center', fontWeight: 700 }}>{d}</div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+        <div className="calendar-grid">
           {monthMatrix.map((date, idx) => {
             const dateKey = date.toISOString().slice(0, 10);
             const events = eventsByDate[dateKey] ?? [];
@@ -143,12 +238,12 @@ export function SchedulePage() {
               <div
                 key={idx}
                 className="card"
-                style={{ minHeight: 130, cursor: 'pointer', border: incomplete ? '1px solid #f59e0b' : undefined }}
+                style={{ minHeight: 130, cursor: 'pointer', border: incomplete ? '1px solid var(--warning-border)' : undefined }}
                 onClick={() => setSelectedDate(dateKey)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ fontWeight: 700 }}>{date.getDate()}</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>{events.length > 0 ? `${events.length} evento(s)` : ''}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{events.length > 0 ? `${events.length} evento(s)` : ''}</div>
                 </div>
                 <div style={{ display: 'grid', gap: 8 }}>
                   {events.slice(0, 2).map((ev) => {
@@ -156,10 +251,24 @@ export function SchedulePage() {
                     const firstNames = names.slice(0, 2).join(', ');
                     const extra = names.length > 2 ? ` +${names.length - 2} integrantes` : '';
                     return (
-                      <div key={ev.id} style={{ padding: 6, borderRadius: 8, background: '#f8fafc' }}>
-                        <div style={{ fontSize: 12, fontWeight: 700 }}>{ev.eventName}</div>
-                        <div style={{ fontSize: 12, color: '#475569' }}>{ev.time}</div>
-                        <div style={{ fontSize: 12, color: '#1f2937' }}>{firstNames || 'Sem integrantes'}{extra}</div>
+                      <div key={ev.id} style={{ padding: 6, borderRadius: 8, background: 'var(--surface-soft)' }} className="scale-event-preview">
+                        <div style={{ fontSize: 12, fontWeight: 700, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                          <span>{ev.eventName}</span>
+                          <button
+                            type="button"
+                            className="edit-icon-button"
+                            title="Editar escala"
+                            aria-label="Editar escala"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              startEventEdit(ev.id, ev.memberIds, dateKey);
+                            }}
+                          >
+                            ✎
+                          </button>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{ev.time}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text)' }}>{firstNames || 'Sem integrantes'}{extra}</div>
                       </div>
                     );
                   })}
@@ -172,14 +281,14 @@ export function SchedulePage() {
 
       {selectedDate ? (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99 }}
+          className="modal-overlay"
           onClick={() => {
             setSelectedDate(null);
             setEditingEventId(null);
             setMemberSelection([]);
           }}
         >
-          <div style={{ width: 760, maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="card">
               <button style={{ float: 'right' }} onClick={() => setSelectedDate(null)}>Fechar</button>
               <h2 style={{ marginTop: 0 }}>Eventos em {selectedDate}</h2>
@@ -188,11 +297,11 @@ export function SchedulePage() {
                 const isEditing = editingEventId === ev.id;
                 const eventHistory = history.filter((h) => h.eventDate === ev.date && h.eventTime === ev.time && h.eventName === ev.eventName);
                 return (
-                  <div key={ev.id} style={{ borderTop: '1px solid #e6eef8', paddingTop: 12, marginTop: 12 }}>
+                  <div key={ev.id} style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <div>
                         <strong>{ev.eventName}</strong>
-                        <div style={{ color: '#64748b' }}>{getWeekDay(new Date(ev.date))} - {ev.date} - {ev.time}</div>
+                        <div style={{ color: 'var(--muted)' }}>{getWeekDay(new Date(ev.date))} - {ev.date} - {ev.time}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div>Quantidade necessária: {ev.requiredMembers}</div>
@@ -205,7 +314,7 @@ export function SchedulePage() {
                     </div>
 
                     {isEditing ? (
-                      <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#f8fafc' }}>
+                      <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--surface-soft)' }}>
                         <p style={{ marginTop: 0 }}>Editar/Trocar integrantes</p>
                         <div style={{ display: 'grid', gap: 6 }}>
                           {(availableMembersByEvent[ev.id] ?? []).map((memberId) => {
@@ -229,13 +338,13 @@ export function SchedulePage() {
                             );
                           })}
                         </div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        <div className="form-actions" style={{ marginTop: 10 }}>
                           <button className="small-button button" onClick={applyManualUpdate}>Salvar edição</button>
-                          <button className="small-button button" style={{ background: '#64748b' }} onClick={() => { setEditingEventId(null); setMemberSelection([]); }}>Cancelar</button>
+                          <button className="small-button button secondary" onClick={() => { setEditingEventId(null); setMemberSelection([]); }}>Cancelar</button>
                         </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                      <div className="form-actions" style={{ marginTop: 10 }}>
                         <button
                           className="small-button button"
                           onClick={() => {
@@ -246,8 +355,7 @@ export function SchedulePage() {
                           Editar
                         </button>
                         <button
-                          className="small-button button"
-                          style={{ background: '#0ea5a4' }}
+                          className="small-button button success"
                           onClick={() => {
                             setEditingEventId(ev.id);
                             setMemberSelection(ev.memberIds);
@@ -258,7 +366,7 @@ export function SchedulePage() {
                       </div>
                     )}
 
-                    <div style={{ marginTop: 10, background: '#f8fafc', borderRadius: 8, padding: 8 }}>
+                    <div style={{ marginTop: 10, background: 'var(--surface-soft)', borderRadius: 8, padding: 8 }}>
                       <strong>Histórico de alterações do evento</strong>
                       {eventHistory.length === 0 ? (
                         <p style={{ margin: '8px 0 0' }}>Nenhuma alteração registrada para este evento.</p>

@@ -3,7 +3,7 @@ import { SummaryCard } from '../components/SummaryCard';
 import { useAppState } from '../hooks/useAppState';
 
 export function DashboardPage() {
-  const { members, schedule, alerts, eventRules } = useAppState();
+  const { members, schedule, alerts } = useAppState();
 
   const totalMembers = members.length;
   const activeMembers = useMemo(() => members.filter((member) => member.active).length, [members]);
@@ -42,7 +42,7 @@ export function DashboardPage() {
 
   const maxValue = Math.max(...chartData.map((item) => item.value), 1);
   const incompleteEvents = schedule.filter((item) => item.memberIds.length < item.requiredMembers);
-  const hasAvailabilityRestriction = members.some((member) => member.dateExceptions.length > 0);
+  const hasAvailabilityRestriction = members.some((member) => member.unavailability.length > 0);
   const isBalanced = participationDiff <= 1;
   const shouldShowRedAlert = participationDiff > 1 && !hasAvailabilityRestriction && incompleteEvents.length === 0;
 
@@ -56,16 +56,10 @@ export function DashboardPage() {
         <SummaryCard title="Integrantes inativos" value={String(inactiveMembers)} />
       </div>
 
-      <div className="grid-3" style={{ marginTop: 12 }}>
-        <SummaryCard title="Eventos cadastrados" value={String(eventRules.length)} />
-        <SummaryCard title="Próximo evento" value={schedule[0] ? `${schedule[0].date} ${schedule[0].time}` : 'Nenhuma escala gerada'} />
-        <SummaryCard title="Escalas pendentes" value={String(incompleteEvents.length)} />
-      </div>
-
       <div className="card">
         <h2 style={{ marginTop: 0 }}>Gráfico de participações por integrante</h2>
-        <p style={{ color: '#64748b' }}>Comparação visual de participações na escala atual.</p>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16 }}>
+        <p className="muted-text">Comparação visual de participações na escala atual.</p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, overflowX: 'auto' }}>
           {chartData.map((item) => {
             const height = `${(item.value / maxValue) * 180}px`;
             const highlight = shouldShowRedAlert && item.value === maxParticipation;
@@ -78,53 +72,43 @@ export function DashboardPage() {
                     height,
                     minHeight: 4,
                     borderRadius: '8px 8px 0 0',
-                    background: highlight ? '#dc2626' : '#2563eb',
+                    background: highlight ? 'var(--danger)' : 'var(--primary)',
                   }}
                 />
-                <div style={{ fontSize: 12, marginTop: 8, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {item.name}
                 </div>
               </div>
             );
           })}
         </div>
-        <p style={{ color: '#475569', marginTop: 10 }}>Média de participações: <strong>{mean.toFixed(1)}</strong></p>
+        <p className="muted-text" style={{ marginTop: 10 }}>Média de participações: <strong>{mean.toFixed(1)}</strong></p>
         {isBalanced ? (
-          <p style={{ color: '#047857', marginTop: 8 }}>
+          <p style={{ color: 'var(--primary-strong)', marginTop: 8 }}>
             Escala equilibrada: a diferença entre os integrantes está dentro do limite esperado.
           </p>
         ) : shouldShowRedAlert ? (
-          <p style={{ color: '#b91c1c', marginTop: 12 }}>
+          <p style={{ color: 'var(--danger)', marginTop: 12 }}>
             Atenção: desequilíbrio relevante na escala (diferença atual: {participationDiff}).
           </p>
         ) : (
-          <p style={{ color: '#92400e', marginTop: 12 }}>
+          <p style={{ color: 'var(--primary)', marginTop: 12 }}>
             Diferença acima de 1 detectada, possivelmente por indisponibilidade/restrições no período.
           </p>
         )}
       </div>
 
-      <div className="grid-2">
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Próximos 5 eventos</h2>
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>Alertas</h2>
+        {alerts.length > 0 || incompleteEvents.length > 0 ? (
           <ul>
-            {schedule.slice(0, 5).map((eventItem) => (
-              <li key={eventItem.id}>{eventItem.date} - {eventItem.time} - {eventItem.eventName}</li>
+            {alerts.slice(0, 8).map((alert, index) => (
+              <li key={index}>{alert}</li>
             ))}
           </ul>
-        </div>
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Alertas</h2>
-          {alerts.length > 0 || incompleteEvents.length > 0 ? (
-            <ul>
-              {alerts.slice(0, 5).map((alert, index) => (
-                <li key={index}>{alert}</li>
-              ))}
-            </ul>
-          ) : (
-            <p>Nenhum alerta no momento.</p>
-          )}
-        </div>
+        ) : (
+          <p>Nenhum alerta no momento.</p>
+        )}
       </div>
     </div>
   );

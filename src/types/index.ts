@@ -1,9 +1,12 @@
 export type WeekDay = 'domingo' | 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado';
 
-export interface DateException {
+export interface Unavailability {
   id: string;
-  from: string;
-  to: string;
+  type: 'evento' | 'data' | 'periodo';
+  eventId?: string;
+  date?: string;
+  from?: string;
+  to?: string;
   note?: string;
 }
 
@@ -12,19 +15,20 @@ export interface Member {
   name: string;
   nickname?: string;
   phone?: string;
-  email?: string;
   active: boolean;
-  eventAvailability: string[];
-  dateExceptions: DateException[];
+  unavailability: Unavailability[];
   notes?: string;
 }
 
 export interface EventRule {
   id: string;
   name: string;
+  type: 'recorrente' | 'especifico';
+  active?: boolean;
+  date?: string;
   weekday: WeekDay;
   time: string;
-  recurrence: 'semanal' | 'mensal' | 'unico';
+  recurrence: 'nenhuma' | 'semanal' | 'mensal' | 'anual';
   dayOfMonth?: number;
   requiredMembers: number;
   notes?: string;
@@ -58,4 +62,16 @@ export interface SummaryCard {
   title: string;
   value: string;
   description?: string;
+}
+
+export interface ScalePdfHistoryRecord {
+  id: string;
+  fileName: string;
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  eventsCount: number;
+  usedMembersCount: number;
+  status: 'completa' | 'incompleta';
+  pdfDataUrl: string;
 }

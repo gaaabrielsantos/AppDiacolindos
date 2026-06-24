@@ -26,7 +26,7 @@ export function buildSchedule(payload: BuildSchedulePayload) {
   });
 
   const schedule: ScheduleItem[] = eventDates.map((event) => {
-    const eligible = activeMembers.filter((member) => isEligible(member, event.date));
+    const eligible = activeMembers.filter((member) => isEligible(member, event.id, event.date));
     const chosenIds: string[] = [];
 
     while (chosenIds.length < event.requiredMembers) {
@@ -66,9 +66,23 @@ function expandEvents(eventRules: EventRule[], startDate: string, endDate: strin
     const weekday = getWeekDay(date);
     return eventRules
       .filter((rule) => {
+        if (rule.active === false) return false;
+        const currentDate = formatDate(date);
+
+        if (rule.type === 'especifico') {
+          return rule.date === currentDate;
+        }
+
+        if (rule.recurrence === 'nenhuma') {
+          return rule.date === currentDate;
+        }
+
         if (rule.recurrence === 'semanal') return rule.weekday === weekday;
         if (rule.recurrence === 'mensal' && rule.dayOfMonth) return rule.dayOfMonth === date.getDate();
-        if (rule.recurrence === 'unico') return rule.dayOfMonth === date.getDate();
+        if (rule.recurrence === 'anual' && rule.date) {
+          const baseDate = new Date(rule.date);
+          return currentDate >= rule.date && baseDate.getDate() === date.getDate() && baseDate.getMonth() === date.getMonth();
+        }
         return false;
       })
       .map((rule) => ({
@@ -79,12 +93,16 @@ function expandEvents(eventRules: EventRule[], startDate: string, endDate: strin
   });
 }
 
-function isEligible(member: Member, date: string) {
+function isEligible(member: Member, eventId: string, date: string) {
   if (!member.active) return false;
-  // Mantemos exceções por data para evitar escalar alguém indisponível em datas específicas.
-  if (member.dateExceptions.some((exception) => isDateBetween(date, exception.from, exception.to))) {
-    return false;
+  if (!member.unavailability || member.unavailability.length === 0) return true;
+
+  for (const item of member.unavailability) {
+    if (item.type === 'evento' && item.eventId === eventId) return false;
+    if (item.type === 'data' && item.date === date) return false;
+    if (item.type === 'periodo' && item.from && item.to && isDateBetween(date, item.from, item.to)) return false;
   }
+
   return true;
 }
 
