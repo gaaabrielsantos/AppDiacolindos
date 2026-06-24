@@ -48,68 +48,78 @@ export function DashboardPage() {
 
   return (
     <div className="container">
-      <h1 className="page-title">Painel de controle</h1>
+      <main className="page-content">
+        <section className="page-section">
+          <h1 className="page-title">Painel de controle</h1>
+        </section>
 
-      <div className="grid-3">
-        <SummaryCard title="Integrantes cadastrados" value={String(totalMembers)} />
-        <SummaryCard title="Integrantes ativos" value={String(activeMembers)} />
-        <SummaryCard title="Integrantes inativos" value={String(inactiveMembers)} />
-      </div>
+        <section className="page-section">
+          <div className="grid-3">
+            <SummaryCard title="Integrantes cadastrados" value={String(totalMembers)} />
+            <SummaryCard title="Integrantes ativos" value={String(activeMembers)} />
+            <SummaryCard title="Integrantes inativos" value={String(inactiveMembers)} />
+          </div>
+        </section>
 
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Gráfico de participações por integrante</h2>
-        <p className="muted-text">Comparação visual de participações na escala atual.</p>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, flexWrap: 'wrap' }}>
-          {chartData.map((item) => {
-            const height = `${(item.value / maxValue) * 180}px`;
-            const highlight = shouldShowRedAlert && item.value === maxParticipation;
-            return (
-              <div key={item.id} style={{ flex: '1 1 64px', minWidth: 64, textAlign: 'center', maxWidth: 120 }}>
-                <div style={{ fontSize: 12, marginBottom: 6 }}>{item.value}</div>
-                <div
-                  title={`${item.name}: ${item.value}`}
-                  style={{
-                    height,
-                    minHeight: 4,
-                    borderRadius: '8px 8px 0 0',
-                    background: highlight ? 'var(--danger)' : 'var(--primary)',
-                  }}
-                />
-                <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {item.name}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <p className="muted-text" style={{ marginTop: 10 }}>Média de participações: <strong>{mean.toFixed(1)}</strong></p>
-        {isBalanced ? (
-          <p style={{ color: 'var(--primary-strong)', marginTop: 8 }}>
-            Escala equilibrada: a diferença entre os integrantes está dentro do limite esperado.
-          </p>
-        ) : shouldShowRedAlert ? (
-          <p style={{ color: 'var(--danger)', marginTop: 12 }}>
-            Atenção: desequilíbrio relevante na escala (diferença atual: {participationDiff}).
-          </p>
-        ) : (
-          <p style={{ color: 'var(--primary)', marginTop: 12 }}>
-            Diferença acima de 1 detectada, possivelmente por indisponibilidade/restrições no período.
-          </p>
-        )}
-      </div>
+        <section className="page-section">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Gráfico de participações por integrante</h2>
+            <p className="muted-text">Comparação visual de participações na escala atual.</p>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, flexWrap: 'wrap' }}>
+              {chartData.map((item) => {
+                const height = `${(item.value / maxValue) * 180}px`;
+                const highlight = shouldShowRedAlert && item.value === maxParticipation;
+                return (
+                  <div key={item.id} style={{ flex: '1 1 64px', minWidth: 64, textAlign: 'center', maxWidth: 120 }}>
+                    <div style={{ fontSize: 12, marginBottom: 6 }}>{item.value}</div>
+                    <div
+                      title={`${item.name}: ${item.value}`}
+                      style={{
+                        height,
+                        minHeight: 4,
+                        borderRadius: '8px 8px 0 0',
+                        background: highlight ? 'var(--danger)' : 'var(--primary)',
+                      }}
+                    />
+                    <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {item.name}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="muted-text" style={{ marginTop: 10 }}>Média de participações: <strong>{mean.toFixed(1)}</strong></p>
+            {isBalanced ? (
+              <p style={{ color: 'var(--primary-strong)', marginTop: 8 }}>
+                Escala equilibrada: a diferença entre os integrantes está dentro do limite esperado.
+              </p>
+            ) : shouldShowRedAlert ? (
+              <p style={{ color: 'var(--danger)', marginTop: 12 }}>
+                Atenção: desequilíbrio relevante na escala (diferença atual: {participationDiff}).
+              </p>
+            ) : (
+              <p style={{ color: 'var(--primary)', marginTop: 12 }}>
+                Diferença acima de 1 detectada, possivelmente por indisponibilidade/restrições no período.
+              </p>
+            )}
+          </div>
+        </section>
 
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Alertas</h2>
-        {alerts.length > 0 || incompleteEvents.length > 0 ? (
-          <ul>
-            {alerts.slice(0, 8).map((alert, index) => (
-              <li key={index}>{alert}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>Nenhum alerta no momento.</p>
-        )}
-      </div>
+        <section className="page-section">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Alertas</h2>
+            {alerts.length > 0 || incompleteEvents.length > 0 ? (
+              <ul>
+                {alerts.slice(0, 8).map((alert, index) => (
+                  <li key={index}>{alert}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>Nenhum alerta no momento.</p>
+            )}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

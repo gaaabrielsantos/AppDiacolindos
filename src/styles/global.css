@@ -166,11 +166,22 @@ img {
   padding: 24px;
 }
 
+.page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+}
+
+.page-section {
+  width: 100%;
+}
+
 .page-title {
   font-size: clamp(1.6rem, 2.8vw, 2rem);
   font-weight: 700;
   letter-spacing: 0.01em;
-  margin: 8px 0 22px;
+  margin: 0;
   text-align: center;
   text-transform: uppercase;
 }
@@ -412,6 +423,11 @@ input[type="checkbox"] {
   font-size: 0.9rem;
 }
 
+.history-quick-summary {
+  border: 1px solid var(--border-color);
+  opacity: 0.92;
+}
+
 .muted-text {
   color: var(--muted);
 }
@@ -429,6 +445,156 @@ input[type="checkbox"] {
   gap: 8px;
   min-height: 34px;
   color: var(--text-primary);
+}
+
+.inline-checkbox-label {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-primary) !important;
+}
+
+.inline-checkbox-label input {
+  width: auto;
+  min-height: 0;
+}
+
+.add-collapsible-card {
+  display: grid;
+  gap: 10px;
+}
+
+.add-toggle-button {
+  width: fit-content;
+  min-width: 260px;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--button-primary-text);
+  transition:
+    transform 0.25s ease,
+    filter 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.add-toggle-button.open {
+  filter: brightness(0.98);
+}
+
+.collapsible-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    grid-template-rows 0.3s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.collapsible-content.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.collapsible-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding-top: 2px;
+}
+
+.members-list {
+  display: grid;
+  gap: 10px;
+}
+
+.member-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+}
+
+.member-item.editing {
+  border-color: var(--primary);
+}
+
+.member-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.member-meta-grid p {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.member-meta-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.member-meta-grid strong {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.member-meta-muted {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.member-actions {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.member-actions .small-button {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  border-radius: 9px;
+}
+
+.member-inline-editor-shell {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-8px);
+  transition:
+    max-height 0.3s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease;
+  pointer-events: none;
+}
+
+.member-inline-editor-shell.open {
+  max-height: 1200px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.member-inline-editor {
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}
+
+.member-inline-editor h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.inline-edit-actions {
+  margin-top: 2px;
 }
 
 .edit-icon-button {
@@ -646,8 +812,12 @@ input[type="checkbox"] {
 
 @media (max-width: 720px) {
   .page-title {
-    margin-top: 2px;
-    margin-bottom: 14px;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .page-content {
+    gap: 2rem;
   }
 
   .form-actions .button,
@@ -669,6 +839,32 @@ input[type="checkbox"] {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  .add-toggle-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .member-item {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .member-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .member-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .member-actions .button,
+  .member-actions .small-button {
+    width: 100%;
   }
 
   .form-inline-grid-3,
@@ -716,6 +912,10 @@ input[type="checkbox"] {
 
   .main-content {
     padding: 12px;
+  }
+
+  .collapsible-content {
+    transform: translateY(-5px);
   }
 
   .calendar-grid,

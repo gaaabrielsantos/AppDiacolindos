@@ -155,133 +155,145 @@ export function SchedulePage() {
 
   return (
     <div className="container">
-      <h1 className="page-title">Escala</h1>
+      <main className="page-content">
+        <section className="page-section">
+          <h1 className="page-title">Escala</h1>
+        </section>
 
-      <div className="card" style={{ maxWidth: 760, margin: '0 auto' }}>
-        <h2 style={{ marginTop: 0, textAlign: 'center', textTransform: 'uppercase' }}>Período da escala</h2>
-        <div className="input-group" style={{ marginBottom: 0 }}>
-          <button className="button secondary" onClick={() => setPeriodPickerOpen((current) => !current)}>
-            {periodLabel}
-          </button>
-        </div>
-        {periodPickerOpen ? (
-          <div className="card" style={{ marginTop: 12, padding: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-              <button className="small-button button secondary" onClick={openPeriodPrev}>Anterior</button>
-              <strong>{new Date(periodCursor.year, periodCursor.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
-              <button className="small-button button secondary" onClick={openPeriodNext}>Próximo</button>
+        <section className="page-section">
+          <div className="card" style={{ maxWidth: 760, margin: '0 auto' }}>
+            <h2 style={{ marginTop: 0, textAlign: 'center', textTransform: 'uppercase' }}>Período da escala</h2>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <button className="button secondary" onClick={() => setPeriodPickerOpen((current) => !current)}>
+                {periodLabel}
+              </button>
             </div>
+            {periodPickerOpen ? (
+              <div className="card" style={{ marginTop: 12, padding: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                  <button className="small-button button secondary" onClick={openPeriodPrev}>Anterior</button>
+                  <strong>{new Date(periodCursor.year, periodCursor.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
+                  <button className="small-button button secondary" onClick={openPeriodNext}>Próximo</button>
+                </div>
+                <div className="calendar-wrapper">
+                  <div className="calendar-weekdays" style={{ marginBottom: 8 }}>
+                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                      <div key={d} style={{ textAlign: 'center', fontWeight: 700 }}>{d}</div>
+                    ))}
+                  </div>
+                  <div className="calendar-grid">
+                    {periodMatrix.map((date, idx) => {
+                      const dateValue = date.toISOString().slice(0, 10);
+                      const isStart = isRangeStart(dateValue);
+                      const isEnd = isRangeEnd(dateValue);
+                      const inRange = isInRange(dateValue);
+                      const outsideMonth = date.getMonth() !== periodCursor.month;
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`small-button button secondary calendar-day ${outsideMonth ? 'outside-month' : ''} ${inRange ? 'in-range' : ''} ${isStart || isEnd ? 'selected' : ''}`}
+                          style={{ fontWeight: isStart || isEnd ? 700 : 500 }}
+                          onClick={() => pickPeriodDate(dateValue)}
+                        >
+                          {date.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
+              <button className="button" onClick={handleGenerateSchedule}>Gerar Escala</button>
+            </div>
+          </div>
+        </section>
+
+        {alerts.length > 0 ? (
+          <section className="page-section">
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>Alertas de escala incompleta</h2>
+              <ul>
+                {alerts.map((alert, idx) => <li key={idx}>{alert}</li>)}
+              </ul>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="page-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="small-button button" onClick={openPrev}>Anterior</button>
+              <button className="small-button button" onClick={openNext}>Próximo</button>
+            </div>
+            <div className="card">
+              <strong>{new Date(cursor.year, cursor.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="page-section">
+          <div style={{ display: 'grid', gap: 12 }}>
             <div className="calendar-wrapper">
-              <div className="calendar-weekdays" style={{ marginBottom: 8 }}>
+              <div className="calendar-weekdays">
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
                   <div key={d} style={{ textAlign: 'center', fontWeight: 700 }}>{d}</div>
                 ))}
               </div>
               <div className="calendar-grid">
-                {periodMatrix.map((date, idx) => {
-                  const dateValue = date.toISOString().slice(0, 10);
-                  const isStart = isRangeStart(dateValue);
-                  const isEnd = isRangeEnd(dateValue);
-                  const inRange = isInRange(dateValue);
-                  const outsideMonth = date.getMonth() !== periodCursor.month;
-
+                {monthMatrix.map((date, idx) => {
+                  const dateKey = date.toISOString().slice(0, 10);
+                  const events = eventsByDate[dateKey] ?? [];
+                  const incomplete = events.some((e) => e.memberIds.length < e.requiredMembers);
                   return (
-                    <button
+                    <div
                       key={idx}
-                      type="button"
-                      className={`small-button button secondary calendar-day ${outsideMonth ? 'outside-month' : ''} ${inRange ? 'in-range' : ''} ${isStart || isEnd ? 'selected' : ''}`}
-                      style={{ fontWeight: isStart || isEnd ? 700 : 500 }}
-                      onClick={() => pickPeriodDate(dateValue)}
+                      className="card calendar-day-card"
+                      style={{ minHeight: 130, cursor: 'pointer', border: incomplete ? '1px solid var(--warning-border)' : undefined }}
+                      onClick={() => setSelectedDate(dateKey)}
                     >
-                      {date.getDate()}
-                    </button>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, gap: 6 }}>
+                        <div style={{ fontWeight: 700 }}>{date.getDate()}</div>
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{events.length > 0 ? `${events.length} evento(s)` : ''}</div>
+                      </div>
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {events.slice(0, 2).map((ev) => {
+                          const names = namesForEvent(ev.memberIds);
+                          const firstNames = names.slice(0, 2).join(', ');
+                          const extra = names.length > 2 ? ` +${names.length - 2} integrantes` : '';
+                          return (
+                            <div key={ev.id} style={{ padding: 6, borderRadius: 8, background: 'var(--surface-soft)', overflowWrap: 'anywhere', wordBreak: 'break-word' }} className="scale-event-preview">
+                              <div style={{ fontSize: 12, fontWeight: 700, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                                <span>{ev.eventName}</span>
+                                <button
+                                  type="button"
+                                  className="edit-icon-button"
+                                  title="Editar escala"
+                                  aria-label="Editar escala"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    startEventEdit(ev.id, ev.memberIds, dateKey);
+                                  }}
+                                >
+                                  ✎
+                                </button>
+                              </div>
+                              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{ev.time}</div>
+                              <div style={{ fontSize: 12, color: 'var(--text)', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{firstNames || 'Sem integrantes'}{extra}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             </div>
           </div>
-        ) : null}
-        <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
-          <button className="button" onClick={handleGenerateSchedule}>Gerar Escala</button>
-        </div>
-      </div>
-
-      {alerts.length > 0 ? (
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Alertas de escala incompleta</h2>
-          <ul>
-            {alerts.map((alert, idx) => <li key={idx}>{alert}</li>)}
-          </ul>
-        </div>
-      ) : null}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="small-button button" onClick={openPrev}>Anterior</button>
-          <button className="small-button button" onClick={openNext}>Próximo</button>
-        </div>
-        <div className="card">
-          <strong>{new Date(cursor.year, cursor.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gap: 12 }}>
-        <div className="calendar-wrapper">
-          <div className="calendar-weekdays">
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-              <div key={d} style={{ textAlign: 'center', fontWeight: 700 }}>{d}</div>
-            ))}
-          </div>
-          <div className="calendar-grid">
-            {monthMatrix.map((date, idx) => {
-              const dateKey = date.toISOString().slice(0, 10);
-              const events = eventsByDate[dateKey] ?? [];
-              const incomplete = events.some((e) => e.memberIds.length < e.requiredMembers);
-              return (
-                <div
-                  key={idx}
-                  className="card calendar-day-card"
-                  style={{ minHeight: 130, cursor: 'pointer', border: incomplete ? '1px solid var(--warning-border)' : undefined }}
-                  onClick={() => setSelectedDate(dateKey)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, gap: 6 }}>
-                    <div style={{ fontWeight: 700 }}>{date.getDate()}</div>
-                    <div style={{ fontSize: 12, color: 'var(--muted)' }}>{events.length > 0 ? `${events.length} evento(s)` : ''}</div>
-                  </div>
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {events.slice(0, 2).map((ev) => {
-                      const names = namesForEvent(ev.memberIds);
-                      const firstNames = names.slice(0, 2).join(', ');
-                      const extra = names.length > 2 ? ` +${names.length - 2} integrantes` : '';
-                      return (
-                        <div key={ev.id} style={{ padding: 6, borderRadius: 8, background: 'var(--surface-soft)', overflowWrap: 'anywhere', wordBreak: 'break-word' }} className="scale-event-preview">
-                          <div style={{ fontSize: 12, fontWeight: 700, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                            <span>{ev.eventName}</span>
-                            <button
-                              type="button"
-                              className="edit-icon-button"
-                              title="Editar escala"
-                              aria-label="Editar escala"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                startEventEdit(ev.id, ev.memberIds, dateKey);
-                              }}
-                            >
-                              ✎
-                            </button>
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--muted)' }}>{ev.time}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text)', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{firstNames || 'Sem integrantes'}{extra}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
       {selectedDate ? (
         <div

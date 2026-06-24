@@ -1,76 +1,40 @@
-import { useState } from 'react';
+import { Dispatch, SetStateAction, useState } from 'react';
 import { Member, Unavailability } from '../types';
 import { useAppState } from '../hooks/useAppState';
 
-export function MembersPage() {
-  const { members, setMembers, eventRules, schedule } = useAppState();
-  const [form, setForm] = useState<Partial<Member>>({
-    name: '',
-    nickname: '',
-    phone: '',
-    active: true,
-    unavailability: [],
-    notes: '',
-  });
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [dateRestriction, setDateRestriction] = useState({ date: '', note: '' });
-  const [periodRestriction, setPeriodRestriction] = useState({ from: '', to: '', note: '' });
+const emptyMemberForm = (): Partial<Member> => ({
+  name: '',
+  nickname: '',
+  phone: '',
+  active: true,
+  unavailability: [],
+  notes: '',
+});
 
-  const resetForm = () => {
-    setForm({ name: '', nickname: '', phone: '', active: true, unavailability: [], notes: '' });
-    setDateRestriction({ date: '', note: '' });
-    setPeriodRestriction({ from: '', to: '', note: '' });
-    setEditingId(null);
-  };
+type RestrictionState = { date: string; note: string };
+type PeriodRestrictionState = { from: string; to: string; note: string };
 
-  const handleCreateOrUpdate = () => {
-    if (!form.name?.trim()) return;
-
-    const payload: Member = {
-      id: editingId ?? `member-${crypto.randomUUID()}`,
-      name: form.name.trim(),
-      nickname: form.nickname?.trim() || undefined,
-      phone: form.phone?.trim() || undefined,
-      active: form.active ?? true,
-      unavailability: form.unavailability ?? [],
-      notes: form.notes?.trim() || undefined,
-    };
-
-    if (editingId) {
-      setMembers((current) => current.map((member) => (member.id === editingId ? payload : member)));
-    } else {
-      setMembers((current) => [...current, payload]);
-    }
-
-    resetForm();
-  };
-
-  const startEdit = (memberId: string) => {
-    const selected = members.find((member) => member.id === memberId);
-    if (!selected) return;
-    setForm({ ...selected });
-    setEditingId(memberId);
-    setDateRestriction({ date: '', note: '' });
-    setPeriodRestriction({ from: '', to: '', note: '' });
-  };
-
-  const toggleActive = (id: string) => {
-    setMembers((current) => current.map((member) => (member.id === id ? { ...member, active: !member.active } : member)));
-  };
-
-  const deleteMember = (memberId: string) => {
-    const inSchedule = schedule.some((item) => item.memberIds.includes(memberId));
-    if (inSchedule) {
-      alert('Este integrante já está vinculado a uma escala. Para manter histórico, prefira desativá-lo.');
-      return;
-    }
-    if (!confirm('Tem certeza que deseja deletar este integrante? Essa ação não poderá ser desfeita.')) return;
-    setMembers((current) => current.filter((member) => member.id !== memberId));
-  };
-
+function MemberRestrictionsFields({
+  form,
+  setForm,
+  eventRules,
+  dateRestriction,
+  setDateRestriction,
+  periodRestriction,
+  setPeriodRestriction,
+}: {
+  form: Partial<Member>;
+  setForm: Dispatch<SetStateAction<Partial<Member>>>;
+  eventRules: ReturnType<typeof useAppState>['eventRules'];
+  dateRestriction: RestrictionState;
+  setDateRestriction: Dispatch<SetStateAction<RestrictionState>>;
+  periodRestriction: PeriodRestrictionState;
+  setPeriodRestriction: Dispatch<SetStateAction<PeriodRestrictionState>>;
+}) {
   const addEventUnavailability = (eventId: string) => {
     const current = form.unavailability ?? [];
     const exists = current.some((item) => item.type === 'evento' && item.eventId === eventId);
+
     if (exists) {
       setForm((prev) => ({
         ...prev,
@@ -113,109 +77,311 @@ export function MembersPage() {
   };
 
   return (
+    <>
+      <div className="full-width">
+        <small style={{ fontWeight: 700 }}>Indisponibilidade por evento (opcional)</small>
+        <div className="event-options-grid">
+          {eventRules.map((eventRule) => {
+            const checked = (form.unavailability ?? []).some((item) => item.type === 'evento' && item.eventId === eventRule.id);
+            return (
+              <label key={eventRule.id} className="event-option-item">
+                <input type="checkbox" checked={checked} onChange={() => addEventUnavailability(eventRule.id)} />
+                <span>
+                  <strong>{eventRule.name}</strong> - {eventRule.type === 'especifico' ? eventRule.date : eventRule.weekday} {eventRule.time}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+        <small>Indisponibilidade por data específica</small>
+        <div className="form-inline-grid-3">
+          <input type="date" value={dateRestriction.date} onChange={(event) => setDateRestriction((prev) => ({ ...prev, date: event.target.value }))} />
+          <input
+            placeholder="Observação (opcional)"
+            value={dateRestriction.note}
+            onChange={(event) => setDateRestriction((prev) => ({ ...prev, note: event.target.value }))}
+          />
+          <button type="button" className="small-button button" onClick={addDateUnavailability}>Adicionar</button>
+        </div>
+      </div>
+
+      <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+        <small>Indisponibilidade por período</small>
+        <div className="form-inline-grid-4">
+          <input type="date" value={periodRestriction.from} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, from: event.target.value }))} />
+          <input type="date" value={periodRestriction.to} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, to: event.target.value }))} />
+          <input
+            placeholder="Observação (opcional)"
+            value={periodRestriction.note}
+            onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, note: event.target.value }))}
+          />
+          <button type="button" className="small-button button" onClick={addPeriodUnavailability}>Adicionar</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function MembersPage() {
+  const { members, setMembers, eventRules, schedule } = useAppState();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const [createForm, setCreateForm] = useState<Partial<Member>>(emptyMemberForm());
+  const [createDateRestriction, setCreateDateRestriction] = useState<RestrictionState>({ date: '', note: '' });
+  const [createPeriodRestriction, setCreatePeriodRestriction] = useState<PeriodRestrictionState>({ from: '', to: '', note: '' });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Member>>(emptyMemberForm());
+  const [editDateRestriction, setEditDateRestriction] = useState<RestrictionState>({ date: '', note: '' });
+  const [editPeriodRestriction, setEditPeriodRestriction] = useState<PeriodRestrictionState>({ from: '', to: '', note: '' });
+
+  const resetCreateForm = (closeSection = false) => {
+    setCreateForm(emptyMemberForm());
+    setCreateDateRestriction({ date: '', note: '' });
+    setCreatePeriodRestriction({ from: '', to: '', note: '' });
+    if (closeSection) setIsCreateOpen(false);
+  };
+
+  const resetEditForm = () => {
+    setEditForm(emptyMemberForm());
+    setEditDateRestriction({ date: '', note: '' });
+    setEditPeriodRestriction({ from: '', to: '', note: '' });
+    setEditingId(null);
+  };
+
+  const handleCreate = () => {
+    if (!createForm.name?.trim()) return;
+
+    const payload: Member = {
+      id: `member-${crypto.randomUUID()}`,
+      name: createForm.name.trim(),
+      nickname: createForm.nickname?.trim() || undefined,
+      phone: createForm.phone?.trim() || undefined,
+      active: createForm.active ?? true,
+      unavailability: createForm.unavailability ?? [],
+      notes: createForm.notes?.trim() || undefined,
+    };
+
+    setMembers((current) => [...current, payload]);
+    resetCreateForm(true);
+  };
+
+  const startEdit = (memberId: string) => {
+    if (editingId === memberId) {
+      resetEditForm();
+      return;
+    }
+
+    const selected = members.find((member) => member.id === memberId);
+    if (!selected) return;
+
+    setEditingId(memberId);
+    setEditForm({ ...selected });
+    setEditDateRestriction({ date: '', note: '' });
+    setEditPeriodRestriction({ from: '', to: '', note: '' });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingId || !editForm.name?.trim()) return;
+
+    const payload: Member = {
+      id: editingId,
+      name: editForm.name.trim(),
+      nickname: editForm.nickname?.trim() || undefined,
+      phone: editForm.phone?.trim() || undefined,
+      active: editForm.active ?? true,
+      unavailability: editForm.unavailability ?? [],
+      notes: editForm.notes?.trim() || undefined,
+    };
+
+    setMembers((current) => current.map((member) => (member.id === editingId ? payload : member)));
+    resetEditForm();
+  };
+
+  const toggleActive = (id: string) => {
+    setMembers((current) => current.map((member) => (member.id === id ? { ...member, active: !member.active } : member)));
+  };
+
+  const deleteMember = (memberId: string) => {
+    const inSchedule = schedule.some((item) => item.memberIds.includes(memberId));
+    if (inSchedule) {
+      alert('Este integrante já está vinculado a uma escala. Para manter histórico, prefira desativá-lo.');
+      return;
+    }
+    if (!confirm('Tem certeza que deseja deletar este integrante? Essa ação não poderá ser desfeita.')) return;
+    setMembers((current) => current.filter((member) => member.id !== memberId));
+  };
+
+  return (
     <div className="container">
-      <h1 className="page-title">Cadastro de integrantes</h1>
-      <div className="card">
-        <h2>{editingId ? 'Editar integrante' : 'Adicionar integrante'}</h2>
-        <div className="input-group form-grid">
-          <label>
-            Nome (obrigatório)
-            <input value={form.name ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-          </label>
-          <label>
-            Apelido (opcional)
-            <input value={form.nickname ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, nickname: event.target.value }))} />
-          </label>
-          <label>
-            Telefone (opcional)
-            <input value={form.phone ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
-          </label>
+      <main className="page-content">
+        <section className="page-section">
+          <h1 className="page-title">Cadastro de integrantes</h1>
+        </section>
 
-          <div className="full-width">
-            <small style={{ fontWeight: 700 }}>Indisponibilidade por evento (opcional)</small>
-            <div className="event-options-grid">
-              {eventRules.map((eventRule) => {
-                const checked = (form.unavailability ?? []).some((item) => item.type === 'evento' && item.eventId === eventRule.id);
-                return (
-                  <label key={eventRule.id} className="event-option-item">
-                    <input type="checkbox" checked={checked} onChange={() => addEventUnavailability(eventRule.id)} />
-                    <span><strong>{eventRule.name}</strong> - {eventRule.type === 'especifico' ? eventRule.date : eventRule.weekday} {eventRule.time}</span>
-                  </label>
-                );
-              })}
-            </div>
+        <section className="page-section">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Lista de integrantes</h2>
+
+            {members.length === 0 ? (
+              <p className="muted-text">Nenhum integrante cadastrado ainda.</p>
+            ) : (
+              <div className="members-list">
+                {members.map((member) => {
+                  const isEditing = editingId === member.id;
+                  return (
+                    <article key={member.id} className={`card member-item ${isEditing ? 'editing' : ''}`}>
+                      <div className="member-meta-grid">
+                        <p>
+                          <span className="member-meta-label">Nome</span>
+                          <strong>{member.nickname ?? member.name}</strong>
+                          <span className="member-meta-muted">{member.name}</span>
+                        </p>
+                        <p>
+                          <span className="member-meta-label">Telefone</span>
+                          <strong>{member.phone || '-'}</strong>
+                        </p>
+                        <p>
+                          <span className="member-meta-label">Status</span>
+                          <strong>{member.active ? 'Ativo' : 'Inativo'}</strong>
+                        </p>
+                        <p>
+                          <span className="member-meta-label">Indisponibilidades</span>
+                          <strong>{member.unavailability.length === 0 ? 'Sem restrição' : member.unavailability.length}</strong>
+                        </p>
+                      </div>
+
+                      <div className="actions-cell member-actions">
+                        <button type="button" className="small-button button success" onClick={() => startEdit(member.id)}>
+                          {isEditing ? 'Fechar edição' : 'Editar'}
+                        </button>
+                        <button type="button" className="small-button button" onClick={() => toggleActive(member.id)}>
+                          {member.active ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button type="button" className="small-button button danger" onClick={() => deleteMember(member.id)}>Deletar</button>
+                      </div>
+
+                      <div className={`member-inline-editor-shell ${isEditing ? 'open' : ''}`}>
+                        <div className="member-inline-editor">
+                          <h3>Editar integrante</h3>
+                          <div className="input-group form-grid">
+                            <label>
+                              Nome (obrigatório)
+                              <input value={editForm.name ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))} />
+                            </label>
+                            <label>
+                              Apelido (opcional)
+                              <input value={editForm.nickname ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, nickname: event.target.value }))} />
+                            </label>
+                            <label>
+                              Telefone (opcional)
+                              <input value={editForm.phone ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                            </label>
+
+                            <MemberRestrictionsFields
+                              form={editForm}
+                              setForm={setEditForm}
+                              eventRules={eventRules}
+                              dateRestriction={editDateRestriction}
+                              setDateRestriction={setEditDateRestriction}
+                              periodRestriction={editPeriodRestriction}
+                              setPeriodRestriction={setEditPeriodRestriction}
+                            />
+
+                            <label className="full-width">
+                              Observações (opcional)
+                              <textarea rows={3} value={editForm.notes ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
+                            </label>
+
+                            <label className="full-width inline-checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={editForm.active ?? true}
+                                onChange={(event) => setEditForm((prev) => ({ ...prev, active: event.target.checked }))}
+                              />
+                              Integrante ativo
+                            </label>
+
+                            <div className="form-actions full-width inline-edit-actions">
+                              <button type="button" className="button" onClick={handleSaveEdit}>Salvar alterações</button>
+                              <button type="button" className="button secondary" onClick={resetEditForm}>Cancelar</button>
+                            </div>
+                          </div>
+                        </div>
+                        </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
+        </section>
 
-          <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-            <small>Indisponibilidade por data específica</small>
-            <div className="form-inline-grid-3">
-              <input type="date" value={dateRestriction.date} onChange={(event) => setDateRestriction((prev) => ({ ...prev, date: event.target.value }))} />
-              <input placeholder="Observação (opcional)" value={dateRestriction.note} onChange={(event) => setDateRestriction((prev) => ({ ...prev, note: event.target.value }))} />
-              <button className="small-button button" onClick={addDateUnavailability}>Adicionar</button>
-            </div>
-          </div>
-
-          <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-            <small>Indisponibilidade por período</small>
-            <div className="form-inline-grid-4">
-              <input type="date" value={periodRestriction.from} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, from: event.target.value }))} />
-              <input type="date" value={periodRestriction.to} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, to: event.target.value }))} />
-              <input placeholder="Observação (opcional)" value={periodRestriction.note} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, note: event.target.value }))} />
-              <button className="small-button button" onClick={addPeriodUnavailability}>Adicionar</button>
-            </div>
-          </div>
-
-          <label className="full-width">
-            Observações (opcional)
-            <textarea rows={3} value={form.notes ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
-          </label>
-
-          <div className="form-actions full-width">
-            <button className="button" onClick={handleCreateOrUpdate}>
-              {editingId ? 'Salvar alterações' : 'Adicionar integrante'}
+        <section className="page-section">
+          <div className="card add-collapsible-card">
+            <button
+              type="button"
+              className={`button add-toggle-button ${isCreateOpen ? 'open' : ''}`}
+              aria-expanded={isCreateOpen}
+              onClick={() => setIsCreateOpen((current) => !current)}
+            >
+              + Adicionar novo integrante
             </button>
-            {editingId ? (
-              <button className="button secondary" onClick={resetForm}>
-                Cancelar
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
 
-      <div className="card">
-        <h2>Lista de integrantes</h2>
-        <div className="table-wrap">
-        <table className="table responsive-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Telefone</th>
-              <th>Status</th>
-              <th>Indisponibilidades</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((member) => (
-              <tr key={member.id}>
-                <td data-label="Nome"><strong>{member.nickname ?? member.name}</strong> - {member.name}</td>
-                <td data-label="Telefone">{member.phone || '-'}</td>
-                <td data-label="Status">{member.active ? 'Ativo' : 'Inativo'}</td>
-                <td data-label="Indisponibilidades">{member.unavailability.length === 0 ? 'Sem restrição' : member.unavailability.length}</td>
-                <td data-label="Ações" className="actions-cell">
-                  <button className="small-button button success" onClick={() => startEdit(member.id)}>Editar</button>
-                  <button className="small-button button" onClick={() => toggleActive(member.id)}>
-                    {member.active ? 'Desativar' : 'Ativar'}
-                  </button>
-                  <button className="small-button button danger" onClick={() => deleteMember(member.id)}>Deletar</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      </div>
+            <div className={`collapsible-content ${isCreateOpen ? 'open' : ''}`}>
+              <div className="collapsible-inner">
+                <h2 style={{ marginTop: 0 }}>Novo integrante</h2>
+                <div className="input-group form-grid">
+                  <label>
+                    Nome (obrigatório)
+                    <input value={createForm.name ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))} />
+                  </label>
+                  <label>
+                    Apelido (opcional)
+                    <input value={createForm.nickname ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, nickname: event.target.value }))} />
+                  </label>
+                  <label>
+                    Telefone (opcional)
+                    <input value={createForm.phone ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                  </label>
+
+                  <MemberRestrictionsFields
+                    form={createForm}
+                    setForm={setCreateForm}
+                    eventRules={eventRules}
+                    dateRestriction={createDateRestriction}
+                    setDateRestriction={setCreateDateRestriction}
+                    periodRestriction={createPeriodRestriction}
+                    setPeriodRestriction={setCreatePeriodRestriction}
+                  />
+
+                  <label className="full-width">
+                    Observações (opcional)
+                    <textarea rows={3} value={createForm.notes ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, notes: event.target.value }))} />
+                  </label>
+
+                  <label className="full-width inline-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={createForm.active ?? true}
+                      onChange={(event) => setCreateForm((prev) => ({ ...prev, active: event.target.checked }))}
+                    />
+                    Integrante ativo
+                  </label>
+
+                  <div className="form-actions full-width">
+                    <button type="button" className="button" onClick={handleCreate}>Salvar integrante</button>
+                    <button type="button" className="button secondary" onClick={() => resetCreateForm(true)}>Cancelar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

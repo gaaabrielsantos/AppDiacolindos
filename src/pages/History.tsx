@@ -72,110 +72,122 @@ export function HistoryPage() {
 
   return (
     <div className="container">
-      <h1 className="page-title">Histórico</h1>
+      <main className="page-content">
+        <section className="page-section">
+          <h1 className="page-title">Histórico</h1>
+        </section>
 
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Resumo rápido</h2>
-        <div className="grid-3">
-          <p>Total de escalas geradas: <strong>{summary.totalSchedules}</strong></p>
-          <p>Total de alterações realizadas: <strong>{summary.totalChanges}</strong></p>
-          <p>Total de trocas entre integrantes: <strong>{summary.totalSwaps}</strong></p>
-          <p>Última escala gerada: <strong>{summary.lastSchedule}</strong></p>
-          <p>Última alteração registrada: <strong>{summary.lastChange}</strong></p>
-          <p>Período da escala mais recente: <strong>{summary.latestPeriod}</strong></p>
-          <p>Total de integrantes utilizados na última escala: <strong>{summary.usedMembersCount}</strong></p>
-        </div>
-      </div>
-
-      <div className="card export-card">
-        <h2 style={{ marginTop: 0 }}>Exportação manual em PDF</h2>
-        <p className="muted-text" style={{ margin: 0 }}>
-          Selecione o período e exporte a escala manualmente com os dados atuais.
-        </p>
-        <div className="grid-2">
-          <label>
-            Data inicial
-            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-          </label>
-          <label>
-            Data final
-            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-          </label>
-        </div>
-        <div className="export-actions">
-          <button className="button success" onClick={exportPdf}>Exportar escala em PDF</button>
-        </div>
-      </div>
-
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Escalas geradas (PDFs salvos)</h2>
-        <div className="table-wrap">
-        <table className="table responsive-table">
-          <thead>
-            <tr>
-              <th>Data de geração</th>
-              <th>Período</th>
-              <th>Arquivo</th>
-              <th>Status</th>
-              <th>Eventos</th>
-              <th>Integrantes</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scalePdfHistory.length === 0 ? (
-              <tr><td colSpan={7}>Nenhuma escala salva no histórico ainda.</td></tr>
-            ) : (
-              scalePdfHistory.map((record) => (
-                <tr key={record.id}>
-                  <td data-label="Data de geração">{new Date(record.generatedAt).toLocaleString('pt-BR')}</td>
-                  <td data-label="Período">{record.periodStart} a {record.periodEnd}</td>
-                  <td data-label="Arquivo">{record.fileName}</td>
-                  <td data-label="Status">{record.status}</td>
-                  <td data-label="Eventos">{record.eventsCount}</td>
-                  <td data-label="Integrantes">{record.usedMembersCount}</td>
-                  <td data-label="Ações" className="actions-cell">
-                    <button className="small-button button success" onClick={() => openPdf(record.pdfDataUrl)}>Abrir PDF</button>
-                    <button className="small-button button" onClick={() => downloadPdf(record.pdfDataUrl, record.fileName)}>Baixar PDF</button>
-                    <button className="small-button button danger" onClick={() => handleDeleteRecord(record.id)}>Deletar histórico</button>
-                  </td>
+        <section className="page-section">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Escalas geradas (PDFs salvos)</h2>
+            <div className="table-wrap">
+            <table className="table responsive-table">
+              <thead>
+                <tr>
+                  <th>Data de geração</th>
+                  <th>Período</th>
+                  <th>Arquivo</th>
+                  <th>Status</th>
+                  <th>Eventos</th>
+                  <th>Integrantes</th>
+                  <th>Ações</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {scalePdfHistory.length === 0 ? (
+                  <tr><td colSpan={7}>Nenhuma escala salva no histórico ainda.</td></tr>
+                ) : (
+                  scalePdfHistory.map((record) => (
+                    <tr key={record.id}>
+                      <td data-label="Data de geração">{new Date(record.generatedAt).toLocaleString('pt-BR')}</td>
+                      <td data-label="Período">{record.periodStart} a {record.periodEnd}</td>
+                      <td data-label="Arquivo">{record.fileName}</td>
+                      <td data-label="Status">{record.status}</td>
+                      <td data-label="Eventos">{record.eventsCount}</td>
+                      <td data-label="Integrantes">{record.usedMembersCount}</td>
+                      <td data-label="Ações" className="actions-cell">
+                        <button className="small-button button success" onClick={() => openPdf(record.pdfDataUrl)}>Abrir PDF</button>
+                        <button className="small-button button" onClick={() => downloadPdf(record.pdfDataUrl, record.fileName)}>Baixar PDF</button>
+                        <button className="small-button button danger" onClick={() => handleDeleteRecord(record.id)}>Deletar histórico</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </section>
 
-      <div className="card">
-        <h2 style={{ marginTop: 0 }}>Alterações manuais recentes</h2>
-        <div className="table-wrap">
-        <table className="table responsive-table">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Evento</th>
-              <th>Alteração</th>
-              <th>Motivo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredHistory.length === 0 ? (
-              <tr><td colSpan={4}>Nenhuma alteração registrada.</td></tr>
-            ) : (
-              filteredHistory.map((item) => (
-                <tr key={item.id}>
-                  <td data-label="Data">{item.eventDate} - {item.eventTime}</td>
-                  <td data-label="Evento">{item.eventName}</td>
-                  <td data-label="Alteração">{item.originalMemberId}{' -> '}{item.substituteMemberId}</td>
-                  <td data-label="Motivo">{item.reason ?? 'Sem motivo informado'}</td>
+        <section className="page-section">
+          <div className="card export-card">
+            <h2 style={{ marginTop: 0 }}>Exportação manual em PDF</h2>
+            <p className="muted-text" style={{ margin: 0 }}>
+              Selecione o período e exporte a escala manualmente com os dados atuais.
+            </p>
+            <div className="grid-2">
+              <label>
+                Data inicial
+                <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+              </label>
+              <label>
+                Data final
+                <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+              </label>
+            </div>
+            <div className="export-actions">
+              <button className="button success" onClick={exportPdf}>Exportar escala em PDF</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="page-section">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Alterações manuais recentes</h2>
+            <div className="table-wrap">
+            <table className="table responsive-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Evento</th>
+                  <th>Alteração</th>
+                  <th>Motivo</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {filteredHistory.length === 0 ? (
+                  <tr><td colSpan={4}>Nenhuma alteração registrada.</td></tr>
+                ) : (
+                  filteredHistory.map((item) => (
+                    <tr key={item.id}>
+                      <td data-label="Data">{item.eventDate} - {item.eventTime}</td>
+                      <td data-label="Evento">{item.eventName}</td>
+                      <td data-label="Alteração">{item.originalMemberId}{' -> '}{item.substituteMemberId}</td>
+                      <td data-label="Motivo">{item.reason ?? 'Sem motivo informado'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </section>
+
+        <section className="page-section">
+          <div className="overview-muted history-quick-summary">
+            <h2>Resumo rápido</h2>
+            <div className="grid-3">
+              <p>Total de escalas geradas: <strong>{summary.totalSchedules}</strong></p>
+              <p>Total de alterações realizadas: <strong>{summary.totalChanges}</strong></p>
+              <p>Total de trocas entre integrantes: <strong>{summary.totalSwaps}</strong></p>
+              <p>Última escala gerada: <strong>{summary.lastSchedule}</strong></p>
+              <p>Última alteração registrada: <strong>{summary.lastChange}</strong></p>
+              <p>Período da escala mais recente: <strong>{summary.latestPeriod}</strong></p>
+              <p>Total de integrantes utilizados na última escala: <strong>{summary.usedMembersCount}</strong></p>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

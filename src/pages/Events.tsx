@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Dispatch, SetStateAction, useMemo, useState } from 'react';
 import { EventRule, WeekDay } from '../types';
 import { useAppState } from '../hooks/useAppState';
 
@@ -30,30 +30,19 @@ function formatRecurrence(rule: EventRule) {
   return 'Anual';
 }
 
-export function EventsPage() {
-  const { eventRules, setEventRules, schedule, updateEventRule } = useAppState();
-  const [form, setForm] = useState<Partial<EventRule>>(emptyForm());
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  const hasGeneratedSchedule = useMemo(() => new Set(schedule.map((item) => item.eventRuleId)), [schedule]);
-
-  const resetForm = () => {
-    setForm(emptyForm());
-    setEditingId(null);
-  };
-
-  const startEdit = (eventId: string) => {
-    const selected = eventRules.find((eventRule) => eventRule.id === eventId);
-    if (!selected) return;
-    setForm({
-      ...selected,
-      type: selected.type ?? 'recorrente',
-      date: selected.date ?? '',
-      recurrence: selected.recurrence ?? 'semanal',
-    });
-    setEditingId(eventId);
-  };
-
+function EventFormFields({
+  form,
+  setForm,
+  onSave,
+  onCancel,
+  saveLabel,
+}: {
+  form: Partial<EventRule>;
+  setForm: Dispatch<SetStateAction<Partial<EventRule>>>;
+  onSave: () => void;
+  onCancel: () => void;
+  saveLabel: string;
+}) {
   const applyTypeDefaults = (type: EventType) => {
     setForm((prev) => {
       if (type === 'especifico') {
@@ -83,7 +72,139 @@ export function EventsPage() {
     }));
   };
 
-  const buildPayload = (): Partial<EventRule> | null => {
+  return (
+    <div className="input-group form-grid">
+      <label>
+        Nome do evento
+        <input value={form.name ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+      </label>
+
+      <label>
+        Tipo de evento
+        <select value={form.type ?? 'recorrente'} onChange={(event) => applyTypeDefaults(event.target.value as EventType)}>
+          <option value="recorrente">Recorrente</option>
+          <option value="especifico">Específico</option>
+        </select>
+      </label>
+
+      <label>
+        Horário
+        <input type="time" value={form.time ?? '09:00'} onChange={(event) => setForm((prev) => ({ ...prev, time: event.target.value }))} />
+      </label>
+
+      {form.type === 'especifico' ? (
+        <label>
+          Data do evento (calendário)
+          <input type="date" value={form.date ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))} required />
+        </label>
+      ) : (
+        <>
+          <label>
+            Recorrência
+            <select value={form.recurrence ?? 'semanal'} onChange={(event) => applyRecurrence(event.target.value as EventRecurrence)}>
+              <option value="nenhuma">Nenhuma</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensal">Mensal</option>
+              <option value="anual">Anual</option>
+            </select>
+          </label>
+
+          {form.recurrence === 'semanal' ? (
+            <label>
+              Dia da semana
+              <select value={form.weekday ?? 'domingo'} onChange={(event) => setForm((prev) => ({ ...prev, weekday: event.target.value as WeekDay }))}>
+                {weekdays.map((weekday) => (
+                  <option key={weekday} value={weekday}>{weekday}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {form.recurrence === 'mensal' ? (
+            <label>
+              Dia do mês
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={form.dayOfMonth ?? 1}
+                onChange={(event) => setForm((prev) => ({ ...prev, dayOfMonth: Number(event.target.value) }))}
+              />
+            </label>
+          ) : null}
+
+          {form.recurrence === 'anual' || form.recurrence === 'nenhuma' ? (
+            <label>
+              Data base (calendário)
+              <input type="date" value={form.date ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))} />
+            </label>
+          ) : null}
+        </>
+      )}
+
+      <label>
+        Quantidade de integrantes necessários
+        <input
+          type="number"
+          min={1}
+          value={form.requiredMembers ?? 1}
+          onChange={(event) => setForm((prev) => ({ ...prev, requiredMembers: Number(event.target.value) }))}
+        />
+      </label>
+
+      <label className="full-width">
+        Observações
+        <textarea rows={3} value={form.notes ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
+      </label>
+
+      <label className="full-width inline-checkbox-label">
+        <input type="checkbox" checked={form.active ?? true} onChange={(event) => setForm((prev) => ({ ...prev, active: event.target.checked }))} />
+        Evento ativo
+      </label>
+
+      <div className="form-actions full-width">
+        <button type="button" className="button" onClick={onSave}>{saveLabel}</button>
+        <button type="button" className="button secondary" onClick={onCancel}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+export function EventsPage() {
+  const { eventRules, setEventRules, schedule, updateEventRule } = useAppState();
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<Partial<EventRule>>(emptyForm());
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<EventRule>>(emptyForm());
+
+  const hasGeneratedSchedule = useMemo(() => new Set(schedule.map((item) => item.eventRuleId)), [schedule]);
+
+  const resetCreateForm = (closeSection = false) => {
+    setCreateForm(emptyForm());
+    if (closeSection) setIsCreateOpen(false);
+  };
+
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditForm(emptyForm());
+  };
+
+  const startEdit = (eventId: string) => {
+    const selected = eventRules.find((eventRule) => eventRule.id === eventId);
+    if (!selected) return;
+
+    setEditForm({
+      ...selected,
+      type: selected.type ?? 'recorrente',
+      date: selected.date ?? '',
+      recurrence: selected.recurrence ?? 'semanal',
+    });
+    setEditingId(eventId);
+  };
+
+  const buildPayload = (form: Partial<EventRule>): Partial<EventRule> | null => {
     const name = form.name?.trim();
     const type = form.type ?? 'recorrente';
     const recurrence = form.recurrence ?? 'semanal';
@@ -175,26 +296,9 @@ export function EventsPage() {
     };
   };
 
-  const handleCreateOrUpdate = () => {
-    const payload = buildPayload();
+  const handleCreate = () => {
+    const payload = buildPayload(createForm);
     if (!payload) return;
-
-    if (editingId) {
-      if (hasGeneratedSchedule.has(editingId)) {
-        const option = window.prompt(
-          'Este evento já possui escala gerada. Digite: "proximas" para aplicar apenas nas próximas escalas, "atual" para atualizar também a escala atual, ou "cancelar".',
-          'proximas'
-        );
-
-        if (!option || option.toLowerCase() === 'cancelar') return;
-        const mode = option.toLowerCase() === 'atual' ? 'atual' : 'proximas';
-        updateEventRule(editingId, payload, mode);
-      } else {
-        updateEventRule(editingId, payload, 'proximas');
-      }
-      resetForm();
-      return;
-    }
 
     const eventToCreate: EventRule = {
       id: `event-${crypto.randomUUID()}`,
@@ -211,7 +315,29 @@ export function EventsPage() {
     };
 
     setEventRules((current) => [...current, eventToCreate]);
-    resetForm();
+    resetCreateForm(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingId) return;
+
+    const payload = buildPayload(editForm);
+    if (!payload) return;
+
+    if (hasGeneratedSchedule.has(editingId)) {
+      const option = window.prompt(
+        'Este evento já possui escala gerada. Digite: "proximas" para aplicar apenas nas próximas escalas, "atual" para atualizar também a escala atual, ou "cancelar".',
+        'proximas'
+      );
+
+      if (!option || option.toLowerCase() === 'cancelar') return;
+      const mode = option.toLowerCase() === 'atual' ? 'atual' : 'proximas';
+      updateEventRule(editingId, payload, mode);
+    } else {
+      updateEventRule(editingId, payload, 'proximas');
+    }
+
+    closeEdit();
   };
 
   const removeEvent = (id: string) => {
@@ -230,151 +356,104 @@ export function EventsPage() {
 
   return (
     <div className="container">
-      <h1 className="page-title">Configuração de eventos</h1>
-      <div className="card">
-          <h2>{editingId ? 'Editar evento' : 'Adicionar evento'}</h2>
-          <div className="input-group form-grid">
-            <label>
-              Nome do evento
-              <input value={form.name ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-            </label>
+      <main className="page-content">
+        <section className="page-section">
+          <h1 className="page-title">Configuração de eventos</h1>
+        </section>
 
-            <label>
-              Tipo de evento
-              <select value={form.type ?? 'recorrente'} onChange={(event) => applyTypeDefaults(event.target.value as EventType)}>
-                <option value="recorrente">Recorrente</option>
-                <option value="especifico">Específico</option>
-              </select>
-            </label>
-
-            <label>
-              Horário
-              <input type="time" value={form.time ?? '09:00'} onChange={(event) => setForm((prev) => ({ ...prev, time: event.target.value }))} />
-            </label>
-
-            {form.type === 'especifico' ? (
-              <label>
-                Data do evento (calendário)
-                <input type="date" value={form.date ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))} required />
-              </label>
-            ) : (
-              <>
-                <label>
-                  Recorrência
-                  <select value={form.recurrence ?? 'semanal'} onChange={(event) => applyRecurrence(event.target.value as EventRecurrence)}>
-                    <option value="nenhuma">Nenhuma</option>
-                    <option value="semanal">Semanal</option>
-                    <option value="mensal">Mensal</option>
-                    <option value="anual">Anual</option>
-                  </select>
-                </label>
-
-                {form.recurrence === 'semanal' ? (
-                  <label>
-                    Dia da semana
-                    <select value={form.weekday ?? 'domingo'} onChange={(event) => setForm((prev) => ({ ...prev, weekday: event.target.value as WeekDay }))}>
-                      {weekdays.map((weekday) => (
-                        <option key={weekday} value={weekday}>{weekday}</option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                {form.recurrence === 'mensal' ? (
-                  <label>
-                    Dia do mês
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={form.dayOfMonth ?? 1}
-                      onChange={(event) => setForm((prev) => ({ ...prev, dayOfMonth: Number(event.target.value) }))}
-                    />
-                  </label>
-                ) : null}
-
-                {form.recurrence === 'anual' || form.recurrence === 'nenhuma' ? (
-                  <label>
-                    Data base (calendário)
-                    <input type="date" value={form.date ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))} />
-                  </label>
-                ) : null}
-              </>
-            )}
-
-            <label>
-              Quantidade de integrantes necessários
-              <input
-                type="number"
-                min={1}
-                value={form.requiredMembers ?? 1}
-                onChange={(event) => setForm((prev) => ({ ...prev, requiredMembers: Number(event.target.value) }))}
-              />
-            </label>
-
-            <label className="full-width">
-              Observações
-              <textarea rows={3} value={form.notes ?? ''} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
-            </label>
-
-            <label className="full-width" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input type="checkbox" checked={form.active ?? true} onChange={(event) => setForm((prev) => ({ ...prev, active: event.target.checked }))} />
-              Evento ativo
-            </label>
-
-            <div className="form-actions full-width">
-              <button className="button" onClick={handleCreateOrUpdate}>{editingId ? 'Salvar edição' : 'Salvar evento'}</button>
-              {editingId ? <button className="button secondary" onClick={resetForm}>Cancelar</button> : null}
+        <section className="page-section">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Eventos configurados</h2>
+            <div className="table-wrap">
+            <table className="table responsive-table">
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Data ou dia</th>
+                  <th>Horário</th>
+                  <th>Qtd. necessária</th>
+                  <th>Tipo</th>
+                  <th>Recorrência</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventRules.map((rule) => (
+                  <tr key={rule.id}>
+                    <td data-label="Evento">{rule.name}</td>
+                    <td data-label="Data ou dia">{rule.type === 'especifico' ? rule.date : rule.recurrence === 'mensal' ? `Dia ${rule.dayOfMonth ?? '-'}` : rule.recurrence === 'anual' || rule.recurrence === 'nenhuma' ? rule.date : rule.weekday}</td>
+                    <td data-label="Horário">{rule.time}</td>
+                    <td data-label="Qtd. necessária">{rule.requiredMembers}</td>
+                    <td data-label="Tipo">{formatEventType(rule.type)}</td>
+                    <td data-label="Recorrência">{formatRecurrence(rule)}</td>
+                    <td data-label="Status">{rule.active === false ? 'Inativo' : 'Ativo'}</td>
+                    <td data-label="Ações" className="actions-cell">
+                      <button type="button" className="small-button button success" onClick={() => startEdit(rule.id)}>Editar</button>
+                      <button type="button" className="small-button button" onClick={() => toggleActive(rule.id)}>
+                        {rule.active === false ? 'Ativar' : 'Desativar'}
+                      </button>
+                      <button type="button" className="small-button button danger" onClick={() => removeEvent(rule.id)}>
+                        Deletar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             </div>
           </div>
-      </div>
+        </section>
 
-      <div className="card">
-        <h2>Eventos configurados</h2>
-        <div className="table-wrap">
-        <table className="table responsive-table">
-          <thead>
-            <tr>
-              <th>Evento</th>
-              <th>Data ou dia</th>
-              <th>Horário</th>
-              <th>Qtd. necessária</th>
-              <th>Tipo</th>
-              <th>Recorrência</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {eventRules.map((rule) => (
-              <tr key={rule.id}>
-                <td data-label="Evento">{rule.name}</td>
-                <td data-label="Data ou dia">{rule.type === 'especifico' ? rule.date : rule.recurrence === 'mensal' ? `Dia ${rule.dayOfMonth ?? '-'}` : rule.recurrence === 'anual' || rule.recurrence === 'nenhuma' ? rule.date : rule.weekday}</td>
-                <td data-label="Horário">{rule.time}</td>
-                <td data-label="Qtd. necessária">{rule.requiredMembers}</td>
-                <td data-label="Tipo">{formatEventType(rule.type)}</td>
-                <td data-label="Recorrência">{formatRecurrence(rule)}</td>
-                <td data-label="Status">{rule.active === false ? 'Inativo' : 'Ativo'}</td>
-                <td data-label="Ações" className="actions-cell">
-                  <button className="small-button button success" onClick={() => startEdit(rule.id)}>Editar</button>
-                  <button className="small-button button" onClick={() => toggleActive(rule.id)}>
-                    {rule.active === false ? 'Ativar' : 'Desativar'}
-                  </button>
-                  <button className="small-button button danger" onClick={() => removeEvent(rule.id)}>
-                    Deletar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <section className="page-section">
+          <div className="overview-muted">
+            <h2>Visão geral</h2>
+            <p>Total de eventos: <strong>{eventRules.length}</strong> | Recorrentes: <strong>{recurringCount}</strong> | Específicos: <strong>{specificCount}</strong></p>
+          </div>
+        </section>
+
+        <section className="page-section">
+          <div className="card add-collapsible-card">
+            <button
+              type="button"
+              className={`button add-toggle-button ${isCreateOpen ? 'open' : ''}`}
+              aria-expanded={isCreateOpen}
+              onClick={() => setIsCreateOpen((current) => !current)}
+            >
+              + Adicionar novo evento
+            </button>
+            <div className={`collapsible-content ${isCreateOpen ? 'open' : ''}`}>
+              <div className="collapsible-inner">
+                <h2 style={{ marginTop: 0 }}>Novo evento</h2>
+                <EventFormFields
+                  form={createForm}
+                  setForm={setCreateForm}
+                  onSave={handleCreate}
+                  onCancel={() => resetCreateForm(true)}
+                  saveLabel="Salvar evento"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {editingId ? (
+        <div className="modal-overlay" onClick={closeEdit}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>Editar evento</h2>
+              <EventFormFields
+                form={editForm}
+                setForm={setEditForm}
+                onSave={handleSaveEdit}
+                onCancel={closeEdit}
+                saveLabel="Salvar edição"
+              />
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="overview-muted">
-        <h2>Visão geral</h2>
-        <p>Total de eventos: <strong>{eventRules.length}</strong> | Recorrentes: <strong>{recurringCount}</strong> | Específicos: <strong>{specificCount}</strong></p>
-      </div>
+      ) : null}
     </div>
   );
 }
