@@ -6,11 +6,23 @@ import { EventsPage } from './pages/Events';
 import { SchedulePage } from './pages/Schedule';
 import { HistoryPage } from './pages/History';
 import { AppProvider } from './hooks/useAppState';
+import { AccessControlProvider, useAccessControl } from './hooks/useAccessControl';
+import { AccessGate } from './components/AccessGate';
+import { useEffect, useState } from 'react';
 
-export default function App() {
+function AppContent() {
+  const { isAdmin } = useAccessControl();
+  const [loginOpen, setLoginOpen] = useState(() => !isAdmin);
+
+  useEffect(() => {
+    if (isAdmin) {
+      setLoginOpen(false);
+    }
+  }, [isAdmin]);
+
   return (
     <AppProvider>
-      <Layout>
+      <Layout onOpenLogin={() => setLoginOpen(true)}>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/integrantes" element={<MembersPage />} />
@@ -20,6 +32,15 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
+      <AccessGate loginOpen={loginOpen} onClose={() => setLoginOpen(false)} />
     </AppProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AccessControlProvider>
+      <AppContent />
+    </AccessControlProvider>
   );
 }

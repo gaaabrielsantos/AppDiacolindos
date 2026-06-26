@@ -465,6 +465,54 @@ input[type="checkbox"] {
   gap: 10px;
 }
 
+#add-integrante-section,
+#add-evento-section {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+#add-integrante-section .add-toggle-button,
+#add-evento-section .add-toggle-button {
+  margin: 0 auto;
+}
+
+#add-integrante-section .form-actions,
+#add-evento-section .form-actions {
+  justify-content: center;
+}
+
+.restriction-toggle-group {
+  display: grid;
+  gap: 8px;
+}
+
+.restriction-toggle {
+  justify-self: start;
+}
+
+.restriction-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    grid-template-rows 0.25s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.restriction-collapsible.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.restriction-collapsible-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .add-toggle-button {
   width: fit-content;
   min-width: 260px;
@@ -517,6 +565,20 @@ input[type="checkbox"] {
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--surface-soft);
+}
+
+.member-item.inativo {
+  filter: grayscale(100%);
+  opacity: 0.68;
+  background: var(--bg-card-soft);
+  color: var(--text-secondary);
+}
+
+.member-item.inativo .button.success,
+.member-item.inativo .button.danger {
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
+  border-color: var(--border-color);
 }
 
 .member-item.editing {
@@ -626,8 +688,35 @@ input[type="checkbox"] {
   flex-wrap: wrap;
 }
 
+.export-pdf-actions {
+  justify-content: center;
+  width: 100%;
+  margin-top: 1rem;
+}
+
 .export-actions .button {
   width: auto;
+}
+
+.export-pdf-date-fields {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  width: 100%;
+  margin: 1rem auto 0;
+  flex-wrap: wrap;
+}
+
+.export-pdf-date-fields label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.export-pdf-date-fields input {
+  min-width: 160px;
 }
 
 .calendar-grid {
@@ -674,6 +763,89 @@ input[type="checkbox"] {
   background: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
+}
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(0, 122, 61, 0.2), rgba(15, 23, 42, 0.38));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 180;
+  padding: 16px;
+}
+
+.login-card {
+  width: min(560px, 100%);
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  position: relative;
+  display: grid;
+  gap: 14px;
+  backdrop-filter: none;
+}
+
+.login-card h1 {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+  text-transform: uppercase;
+}
+
+.login-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.login-form-grid {
+  margin: 0;
+}
+
+.login-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.login-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--button-secondary-bg);
+  color: var(--text-primary);
+}
+
+.login-error {
+  margin: 0;
+  color: var(--danger);
+  font-weight: 700;
+  text-align: center;
+}
+
+#escala-mes-ano-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-align: center;
+  font-family: Avenir, "Avenir Next", Arial, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  padding: 0;
+  margin: 1rem 0;
 }
 
 .calendar-day {
@@ -798,6 +970,10 @@ input[type="checkbox"] {
     margin-bottom: 2px;
   }
 
+  .table.responsive-table td.actions-cell:empty {
+    display: none;
+  }
+
   .table.responsive-table .actions-cell {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -824,6 +1000,21 @@ input[type="checkbox"] {
   .form-actions .small-button,
   .export-actions .button {
     width: 100%;
+  }
+
+  .login-card {
+    width: min(96vw, 560px);
+    padding: 18px;
+  }
+
+  .login-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .restriction-toggle {
+    width: 100%;
+    justify-self: stretch;
   }
 
   .form-actions {
@@ -890,6 +1081,22 @@ input[type="checkbox"] {
   .export-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .export-pdf-date-fields {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .export-pdf-date-fields label {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .export-pdf-date-fields input {
+    width: 100%;
   }
 
   .export-actions .button {

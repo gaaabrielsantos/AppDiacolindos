@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './layout.css';
+import { useAccessControl } from '../hooks/useAccessControl';
 
 const menuItems = [
   { label: 'Dashboard', path: '/' },
@@ -10,8 +11,9 @@ const menuItems = [
   { label: 'Histórico', path: '/historico' },
 ];
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenLogin: () => void }) {
   const location = useLocation();
+  const { accessMode, isAdmin, logout } = useAccessControl();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 1024px)').matches);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -113,6 +115,22 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="brand">
           {sidebarOpen ? <strong>Diacolindos</strong> : null}
         </div>
+        {sidebarOpen ? (
+          <div className="sidebar-access-group">
+            <span className="sidebar-access-item" aria-live="polite">
+              {accessMode === 'admin' ? 'Modo administrador' : 'Modo visualização'}
+            </span>
+            {isAdmin ? (
+              <button type="button" className="sidebar-access-item" onClick={logout}>
+                Sair
+              </button>
+            ) : (
+              <button type="button" className="sidebar-access-item" onClick={onOpenLogin}>
+                Entrar como administrador
+              </button>
+            )}
+          </div>
+        ) : null}
         <nav>
           {menuItems.map((item) => (
             <Link key={item.path} to={item.path} className={location.pathname === item.path ? 'active' : ''}>
@@ -120,6 +138,21 @@ export function Layout({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
+        {sidebarOpen ? (
+          <div className="sidebar-footer">
+            <button
+              className="small-button button secondary sidebar-theme-toggle"
+              onClick={toggleTheme}
+              title={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
+              aria-label={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
+            >
+              <span className={`theme-switch ${theme === 'dark' ? 'dark' : ''}`} aria-hidden>
+                <span className="theme-switch-thumb">{theme === 'light' ? '🌙' : '☀️'}</span>
+              </span>
+              <span className="sidebar-theme-label">{theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}</span>
+            </button>
+          </div>
+        ) : null}
       </aside>
       {isMobile && sidebarOpen ? <button className="sidebar-overlay" aria-label="Fechar menu" onClick={() => setSidebarOpen(false)} /> : null}
       <main className="content">
@@ -134,16 +167,6 @@ export function Layout({ children }: { children: ReactNode }) {
               {sidebarOpen ? '✕' : '☰'}
             </button>
           ) : null}
-          <button
-            className="small-button button secondary theme-toggle"
-            onClick={toggleTheme}
-            title={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
-            aria-label={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
-          >
-            <span className={`theme-switch ${theme === 'dark' ? 'dark' : ''}`} aria-hidden>
-              <span className="theme-switch-thumb">{theme === 'light' ? '🌙' : '☀️'}</span>
-            </span>
-          </button>
         </header>
         <section key={location.pathname} className="content-inner main-content page-transition">{children}</section>
       </main>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppState } from '../hooks/useAppState';
 import { getWeekDay } from '../utils/date';
+import { useAccessControl } from '../hooks/useAccessControl';
+import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
 
 function getMonthMatrix(year: number, month: number) {
   const first = new Date(year, month, 1);
@@ -22,6 +24,7 @@ function formatBrDate(value: string) {
 }
 
 export function SchedulePage() {
+  const { isAdmin } = useAccessControl();
   const { schedule, members, alerts, history, generateSchedule, defaultPeriod, updateScheduleMembers } = useAppState();
   const [startDate, setStartDate] = useState(defaultPeriod.startDate);
   const [endDate, setEndDate] = useState(defaultPeriod.endDate);
@@ -130,6 +133,10 @@ export function SchedulePage() {
   const isInRange = (dateValue: string) => Boolean(rangeStart && rangeEnd && dateValue > rangeStart && dateValue < rangeEnd);
 
   const handleGenerateSchedule = () => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     if (!rangeStart || !rangeEnd) {
       alert('Selecione a data inicial e a data final da escala antes de gerar.');
       return;
@@ -141,6 +148,10 @@ export function SchedulePage() {
   };
 
   const applyManualUpdate = () => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     if (!editingEventId) return;
     updateScheduleMembers(editingEventId, memberSelection, 'Alteração manual na tela de escala');
     setEditingEventId(null);
@@ -148,6 +159,10 @@ export function SchedulePage() {
   };
 
   const startEventEdit = (eventId: string, memberIds: string[], date: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     setSelectedDate(date);
     setEditingEventId(eventId);
     setMemberSelection(memberIds);
@@ -205,9 +220,16 @@ export function SchedulePage() {
                 </div>
               </div>
             ) : null}
-            <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
-              <button className="button" onClick={handleGenerateSchedule}>Gerar Escala</button>
-            </div>
+            {isAdmin ? (
+              <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
+                <button
+                  className="button"
+                  onClick={handleGenerateSchedule}
+                >
+                  Gerar Escala
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -228,7 +250,7 @@ export function SchedulePage() {
               <button className="small-button button" onClick={openPrev}>Anterior</button>
               <button className="small-button button" onClick={openNext}>Próximo</button>
             </div>
-            <div className="card">
+            <div id="escala-mes-ano-card" className="card">
               <strong>{new Date(cursor.year, cursor.month).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
             </div>
           </div>
@@ -267,18 +289,20 @@ export function SchedulePage() {
                             <div key={ev.id} style={{ padding: 6, borderRadius: 8, background: 'var(--surface-soft)', overflowWrap: 'anywhere', wordBreak: 'break-word' }} className="scale-event-preview">
                               <div style={{ fontSize: 12, fontWeight: 700, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                                 <span>{ev.eventName}</span>
-                                <button
-                                  type="button"
-                                  className="edit-icon-button"
-                                  title="Editar escala"
-                                  aria-label="Editar escala"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    startEventEdit(ev.id, ev.memberIds, dateKey);
-                                  }}
-                                >
-                                  ✎
-                                </button>
+                                {isAdmin ? (
+                                  <button
+                                    type="button"
+                                    className="edit-icon-button"
+                                    title="Editar escala"
+                                    aria-label="Editar escala"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      startEventEdit(ev.id, ev.memberIds, dateKey);
+                                    }}
+                                  >
+                                    ✎
+                                  </button>
+                                ) : null}
                               </div>
                               <div style={{ fontSize: 12, color: 'var(--muted)' }}>{ev.time}</div>
                               <div style={{ fontSize: 12, color: 'var(--text)', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{firstNames || 'Sem integrantes'}{extra}</div>
@@ -329,7 +353,7 @@ export function SchedulePage() {
                       <strong>Integrantes:</strong> {names.length > 0 ? names.join(', ') : 'Sem integrantes definidos'}
                     </div>
 
-                    {isEditing ? (
+                    {isAdmin && isEditing ? (
                       <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--surface-soft)' }}>
                         <p style={{ marginTop: 0 }}>Editar/Trocar integrantes</p>
                         <div style={{ display: 'grid', gap: 6 }}>
@@ -348,6 +372,8 @@ export function SchedulePage() {
                                       return Array.from(set).slice(0, ev.requiredMembers);
                                     });
                                   }}
+                                  disabled={!isAdmin}
+                                  title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                                 />
                                 {name}
                               </label>
@@ -355,11 +381,18 @@ export function SchedulePage() {
                           })}
                         </div>
                         <div className="form-actions" style={{ marginTop: 10 }}>
-                          <button className="small-button button" onClick={applyManualUpdate}>Salvar edição</button>
+                          <button
+                            className="small-button button"
+                            onClick={applyManualUpdate}
+                            disabled={!isAdmin}
+                            title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                          >
+                            Salvar edição
+                          </button>
                           <button className="small-button button secondary" onClick={() => { setEditingEventId(null); setMemberSelection([]); }}>Cancelar</button>
                         </div>
                       </div>
-                    ) : (
+                    ) : isAdmin ? (
                       <div className="form-actions" style={{ marginTop: 10 }}>
                         <button
                           className="small-button button"
@@ -367,6 +400,8 @@ export function SchedulePage() {
                             setEditingEventId(ev.id);
                             setMemberSelection(ev.memberIds);
                           }}
+                          disabled={!isAdmin}
+                          title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                         >
                           Editar
                         </button>
@@ -376,11 +411,13 @@ export function SchedulePage() {
                             setEditingEventId(ev.id);
                             setMemberSelection(ev.memberIds);
                           }}
+                          disabled={!isAdmin}
+                          title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                         >
                           Trocar integrante
                         </button>
                       </div>
-                    )}
+                    ) : null}
 
                     <div style={{ marginTop: 10, background: 'var(--surface-soft)', borderRadius: 8, padding: 8 }}>
                       <strong>Histórico de alterações do evento</strong>

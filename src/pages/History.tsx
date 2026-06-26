@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useAppState } from '../hooks/useAppState';
 import { buildSchedulePdf } from '../utils/schedulePdf';
+import { useAccessControl } from '../hooks/useAccessControl';
+import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
 
 export function HistoryPage() {
+  const { isAdmin } = useAccessControl();
   const { history, schedule, members, scalePdfHistory, deleteScalePdfHistory } = useAppState();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -65,6 +68,10 @@ export function HistoryPage() {
   };
 
   const handleDeleteRecord = (recordId: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     const confirmDelete = confirm('Tem certeza que deseja deletar este histórico? O PDF salvo desta escala também será removido.');
     if (!confirmDelete) return;
     deleteScalePdfHistory(recordId);
@@ -90,12 +97,12 @@ export function HistoryPage() {
                   <th>Status</th>
                   <th>Eventos</th>
                   <th>Integrantes</th>
-                  <th>Ações</th>
+                  {isAdmin ? <th>Ações</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {scalePdfHistory.length === 0 ? (
-                  <tr><td colSpan={7}>Nenhuma escala salva no histórico ainda.</td></tr>
+                  <tr><td colSpan={isAdmin ? 7 : 6}>Nenhuma escala salva no histórico ainda.</td></tr>
                 ) : (
                   scalePdfHistory.map((record) => (
                     <tr key={record.id}>
@@ -105,11 +112,18 @@ export function HistoryPage() {
                       <td data-label="Status">{record.status}</td>
                       <td data-label="Eventos">{record.eventsCount}</td>
                       <td data-label="Integrantes">{record.usedMembersCount}</td>
-                      <td data-label="Ações" className="actions-cell">
-                        <button className="small-button button success" onClick={() => openPdf(record.pdfDataUrl)}>Abrir PDF</button>
-                        <button className="small-button button" onClick={() => downloadPdf(record.pdfDataUrl, record.fileName)}>Baixar PDF</button>
-                        <button className="small-button button danger" onClick={() => handleDeleteRecord(record.id)}>Deletar histórico</button>
-                      </td>
+                      {isAdmin ? (
+                        <td data-label="Ações" className="actions-cell">
+                          <button className="small-button button success" onClick={() => openPdf(record.pdfDataUrl)}>Abrir PDF</button>
+                          <button className="small-button button" onClick={() => downloadPdf(record.pdfDataUrl, record.fileName)}>Baixar PDF</button>
+                          <button
+                            className="small-button button danger"
+                            onClick={() => handleDeleteRecord(record.id)}
+                          >
+                            Deletar histórico
+                          </button>
+                        </td>
+                      ) : null}
                     </tr>
                   ))
                 )}
@@ -125,7 +139,7 @@ export function HistoryPage() {
             <p className="muted-text" style={{ margin: 0 }}>
               Selecione o período e exporte a escala manualmente com os dados atuais.
             </p>
-            <div className="grid-2">
+            <div className="export-pdf-date-fields">
               <label>
                 Data inicial
                 <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
@@ -135,9 +149,16 @@ export function HistoryPage() {
                 <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
               </label>
             </div>
-            <div className="export-actions">
-              <button className="button success" onClick={exportPdf}>Exportar escala em PDF</button>
-            </div>
+            {isAdmin ? (
+              <div className="export-actions export-pdf-actions">
+                <button
+                  className="button success"
+                  onClick={exportPdf}
+                >
+                  Exportar escala em PDF
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
 

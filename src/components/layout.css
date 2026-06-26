@@ -27,6 +27,77 @@
   z-index: 120;
 }
 
+.sidebar-access-group {
+  display: grid;
+  gap: 8px;
+  margin-top: -8px;
+  margin-bottom: 14px;
+}
+
+.sidebar-access-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 38px;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  font-family: Avenir, "Avenir Next", Arial, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.15;
+  border: 1px solid rgba(236, 253, 245, 0.25);
+  color: #ecfdf5;
+  background: rgba(0, 0, 0, 0.12);
+  transition: all 0.25s ease;
+}
+
+button.sidebar-access-item {
+  cursor: pointer;
+}
+
+button.sidebar-access-item:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.sidebar-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: flex-start;
+  min-height: 46px;
+  height: auto;
+  padding: 8px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.sidebar-theme-label {
+  font-weight: 600;
+  font-size: 0.86rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-theme-toggle .theme-switch {
+  flex: 0 0 auto;
+}
+
+.sidebar-theme-toggle .theme-switch-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .brand {
   display: flex;
   flex-direction: row;
@@ -343,6 +414,16 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface);
+  }
+
+  .sidebar-theme-label {
+    font-size: 0.82rem;
+  }
+
+  .sidebar-theme-toggle {
+    min-height: 42px;
+    padding: 6px 8px;
+    gap: 8px;
   }
 
   .theme-toggle {

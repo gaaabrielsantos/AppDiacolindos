@@ -1,6 +1,8 @@
 import { Dispatch, SetStateAction, useMemo, useState } from 'react';
 import { EventRule, WeekDay } from '../types';
 import { useAppState } from '../hooks/useAppState';
+import { useAccessControl } from '../hooks/useAccessControl';
+import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
 
 const weekdays: WeekDay[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
@@ -171,6 +173,7 @@ function EventFormFields({
 }
 
 export function EventsPage() {
+  const { isAdmin } = useAccessControl();
   const { eventRules, setEventRules, schedule, updateEventRule } = useAppState();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -192,6 +195,10 @@ export function EventsPage() {
   };
 
   const startEdit = (eventId: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     const selected = eventRules.find((eventRule) => eventRule.id === eventId);
     if (!selected) return;
 
@@ -297,6 +304,10 @@ export function EventsPage() {
   };
 
   const handleCreate = () => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     const payload = buildPayload(createForm);
     if (!payload) return;
 
@@ -319,6 +330,10 @@ export function EventsPage() {
   };
 
   const handleSaveEdit = () => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     if (!editingId) return;
 
     const payload = buildPayload(editForm);
@@ -341,11 +356,19 @@ export function EventsPage() {
   };
 
   const removeEvent = (id: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     if (!confirm('Deseja realmente deletar este evento?')) return;
     setEventRules((current) => current.filter((item) => item.id !== id));
   };
 
   const toggleActive = (id: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     const selected = eventRules.find((eventRule) => eventRule.id === id);
     if (!selected) return;
     updateEventRule(id, { active: !(selected.active ?? true) }, 'proximas');
@@ -375,7 +398,7 @@ export function EventsPage() {
                   <th>Tipo</th>
                   <th>Recorrência</th>
                   <th>Status</th>
-                  <th>Ações</th>
+                  {isAdmin ? <th>Ações</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -388,15 +411,31 @@ export function EventsPage() {
                     <td data-label="Tipo">{formatEventType(rule.type)}</td>
                     <td data-label="Recorrência">{formatRecurrence(rule)}</td>
                     <td data-label="Status">{rule.active === false ? 'Inativo' : 'Ativo'}</td>
-                    <td data-label="Ações" className="actions-cell">
-                      <button type="button" className="small-button button success" onClick={() => startEdit(rule.id)}>Editar</button>
-                      <button type="button" className="small-button button" onClick={() => toggleActive(rule.id)}>
-                        {rule.active === false ? 'Ativar' : 'Desativar'}
-                      </button>
-                      <button type="button" className="small-button button danger" onClick={() => removeEvent(rule.id)}>
-                        Deletar
-                      </button>
-                    </td>
+                    {isAdmin ? (
+                      <td data-label="Ações" className="actions-cell">
+                        <button
+                          type="button"
+                          className="small-button button success"
+                          onClick={() => startEdit(rule.id)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="small-button button"
+                          onClick={() => toggleActive(rule.id)}
+                        >
+                          {rule.active === false ? 'Ativar' : 'Desativar'}
+                        </button>
+                        <button
+                          type="button"
+                          className="small-button button danger"
+                          onClick={() => removeEvent(rule.id)}
+                        >
+                          Deletar
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -413,16 +452,18 @@ export function EventsPage() {
         </section>
 
         <section className="page-section">
-          <div className="card add-collapsible-card">
-            <button
-              type="button"
-              className={`button add-toggle-button ${isCreateOpen ? 'open' : ''}`}
-              aria-expanded={isCreateOpen}
-              onClick={() => setIsCreateOpen((current) => !current)}
-            >
-              + Adicionar novo evento
-            </button>
-            <div className={`collapsible-content ${isCreateOpen ? 'open' : ''}`}>
+          <div id="add-evento-section" className="add-collapsible-card">
+            {isAdmin ? (
+              <button
+                type="button"
+                className={`button add-toggle-button ${isCreateOpen ? 'open' : ''}`}
+                aria-expanded={isCreateOpen}
+                onClick={() => setIsCreateOpen((current) => !current)}
+              >
+                + Adicionar novo evento
+              </button>
+            ) : null}
+            <div className={`collapsible-content ${isAdmin && isCreateOpen ? 'open' : ''}`}>
               <div className="collapsible-inner">
                 <h2 style={{ marginTop: 0 }}>Novo evento</h2>
                 <EventFormFields

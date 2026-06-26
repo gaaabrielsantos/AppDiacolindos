@@ -1,6 +1,8 @@
 import { Dispatch, SetStateAction, useState } from 'react';
 import { Member, Unavailability } from '../types';
 import { useAppState } from '../hooks/useAppState';
+import { useAccessControl } from '../hooks/useAccessControl';
+import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
 
 const emptyMemberForm = (): Partial<Member> => ({
   name: '',
@@ -22,6 +24,9 @@ function MemberRestrictionsFields({
   setDateRestriction,
   periodRestriction,
   setPeriodRestriction,
+  isAdmin,
+  showDateSection,
+  showPeriodSection,
 }: {
   form: Partial<Member>;
   setForm: Dispatch<SetStateAction<Partial<Member>>>;
@@ -30,6 +35,9 @@ function MemberRestrictionsFields({
   setDateRestriction: Dispatch<SetStateAction<RestrictionState>>;
   periodRestriction: PeriodRestrictionState;
   setPeriodRestriction: Dispatch<SetStateAction<PeriodRestrictionState>>;
+  isAdmin: boolean;
+  showDateSection: boolean;
+  showPeriodSection: boolean;
 }) {
   const addEventUnavailability = (eventId: string) => {
     const current = form.unavailability ?? [];
@@ -85,7 +93,13 @@ function MemberRestrictionsFields({
             const checked = (form.unavailability ?? []).some((item) => item.type === 'evento' && item.eventId === eventRule.id);
             return (
               <label key={eventRule.id} className="event-option-item">
-                <input type="checkbox" checked={checked} onChange={() => addEventUnavailability(eventRule.id)} />
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => addEventUnavailability(eventRule.id)}
+                  disabled={!isAdmin}
+                  title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                />
                 <span>
                   <strong>{eventRule.name}</strong> - {eventRule.type === 'especifico' ? eventRule.date : eventRule.weekday} {eventRule.time}
                 </span>
@@ -95,39 +109,84 @@ function MemberRestrictionsFields({
         </div>
       </div>
 
-      <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-        <small>Indisponibilidade por data específica</small>
-        <div className="form-inline-grid-3">
-          <input type="date" value={dateRestriction.date} onChange={(event) => setDateRestriction((prev) => ({ ...prev, date: event.target.value }))} />
-          <input
-            placeholder="Observação (opcional)"
-            value={dateRestriction.note}
-            onChange={(event) => setDateRestriction((prev) => ({ ...prev, note: event.target.value }))}
-          />
-          <button type="button" className="small-button button" onClick={addDateUnavailability}>Adicionar</button>
+      {showDateSection ? (
+        <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          <small>Indisponibilidade por data específica</small>
+          <div className="form-inline-grid-3">
+            <input
+              type="date"
+              value={dateRestriction.date}
+              onChange={(event) => setDateRestriction((prev) => ({ ...prev, date: event.target.value }))}
+              disabled={!isAdmin}
+              title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+            />
+            <input
+              placeholder="Observação (opcional)"
+              value={dateRestriction.note}
+              onChange={(event) => setDateRestriction((prev) => ({ ...prev, note: event.target.value }))}
+              disabled={!isAdmin}
+              title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+            />
+            <button
+              type="button"
+              className="small-button button"
+              onClick={addDateUnavailability}
+              disabled={!isAdmin}
+              title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+            >
+              Adicionar
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-        <small>Indisponibilidade por período</small>
-        <div className="form-inline-grid-4">
-          <input type="date" value={periodRestriction.from} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, from: event.target.value }))} />
-          <input type="date" value={periodRestriction.to} onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, to: event.target.value }))} />
-          <input
-            placeholder="Observação (opcional)"
-            value={periodRestriction.note}
-            onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, note: event.target.value }))}
-          />
-          <button type="button" className="small-button button" onClick={addPeriodUnavailability}>Adicionar</button>
+      {showPeriodSection ? (
+        <div className="full-width" style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          <small>Indisponibilidade por período</small>
+          <div className="form-inline-grid-4">
+            <input
+              type="date"
+              value={periodRestriction.from}
+              onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, from: event.target.value }))}
+              disabled={!isAdmin}
+              title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+            />
+            <input
+              type="date"
+              value={periodRestriction.to}
+              onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, to: event.target.value }))}
+              disabled={!isAdmin}
+              title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+            />
+            <input
+              placeholder="Observação (opcional)"
+              value={periodRestriction.note}
+              onChange={(event) => setPeriodRestriction((prev) => ({ ...prev, note: event.target.value }))}
+              disabled={!isAdmin}
+              title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+            />
+            <button
+              type="button"
+              className="small-button button"
+              onClick={addPeriodUnavailability}
+              disabled={!isAdmin}
+              title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+            >
+              Adicionar
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </>
   );
 }
 
 export function MembersPage() {
+  const { isAdmin } = useAccessControl();
   const { members, setMembers, eventRules, schedule } = useAppState();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createDateSectionOpen, setCreateDateSectionOpen] = useState(false);
+  const [createPeriodSectionOpen, setCreatePeriodSectionOpen] = useState(false);
 
   const [createForm, setCreateForm] = useState<Partial<Member>>(emptyMemberForm());
   const [createDateRestriction, setCreateDateRestriction] = useState<RestrictionState>({ date: '', note: '' });
@@ -137,11 +196,20 @@ export function MembersPage() {
   const [editForm, setEditForm] = useState<Partial<Member>>(emptyMemberForm());
   const [editDateRestriction, setEditDateRestriction] = useState<RestrictionState>({ date: '', note: '' });
   const [editPeriodRestriction, setEditPeriodRestriction] = useState<PeriodRestrictionState>({ from: '', to: '', note: '' });
+  const [editDateSectionOpen, setEditDateSectionOpen] = useState(false);
+  const [editPeriodSectionOpen, setEditPeriodSectionOpen] = useState(false);
+
+  const sortedMembers = [...members].sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+  });
 
   const resetCreateForm = (closeSection = false) => {
     setCreateForm(emptyMemberForm());
     setCreateDateRestriction({ date: '', note: '' });
     setCreatePeriodRestriction({ from: '', to: '', note: '' });
+    setCreateDateSectionOpen(false);
+    setCreatePeriodSectionOpen(false);
     if (closeSection) setIsCreateOpen(false);
   };
 
@@ -149,10 +217,16 @@ export function MembersPage() {
     setEditForm(emptyMemberForm());
     setEditDateRestriction({ date: '', note: '' });
     setEditPeriodRestriction({ from: '', to: '', note: '' });
+    setEditDateSectionOpen(false);
+    setEditPeriodSectionOpen(false);
     setEditingId(null);
   };
 
   const handleCreate = () => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     if (!createForm.name?.trim()) return;
 
     const payload: Member = {
@@ -170,6 +244,10 @@ export function MembersPage() {
   };
 
   const startEdit = (memberId: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     if (editingId === memberId) {
       resetEditForm();
       return;
@@ -185,6 +263,10 @@ export function MembersPage() {
   };
 
   const handleSaveEdit = () => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     if (!editingId || !editForm.name?.trim()) return;
 
     const payload: Member = {
@@ -202,10 +284,18 @@ export function MembersPage() {
   };
 
   const toggleActive = (id: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     setMembers((current) => current.map((member) => (member.id === id ? { ...member, active: !member.active } : member)));
   };
 
   const deleteMember = (memberId: string) => {
+    if (!isAdmin) {
+      alert(VIEWER_BLOCK_MESSAGE);
+      return;
+    }
     const inSchedule = schedule.some((item) => item.memberIds.includes(memberId));
     if (inSchedule) {
       alert('Este integrante já está vinculado a uma escala. Para manter histórico, prefira desativá-lo.');
@@ -230,10 +320,10 @@ export function MembersPage() {
               <p className="muted-text">Nenhum integrante cadastrado ainda.</p>
             ) : (
               <div className="members-list">
-                {members.map((member) => {
+                {sortedMembers.map((member) => {
                   const isEditing = editingId === member.id;
                   return (
-                    <article key={member.id} className={`card member-item ${isEditing ? 'editing' : ''}`}>
+                    <article key={member.id} className={`card member-item ${isEditing ? 'editing' : ''} ${member.active ? '' : 'inativo'}`}>
                       <div className="member-meta-grid">
                         <p>
                           <span className="member-meta-label">Nome</span>
@@ -254,46 +344,123 @@ export function MembersPage() {
                         </p>
                       </div>
 
-                      <div className="actions-cell member-actions">
-                        <button type="button" className="small-button button success" onClick={() => startEdit(member.id)}>
-                          {isEditing ? 'Fechar edição' : 'Editar'}
-                        </button>
-                        <button type="button" className="small-button button" onClick={() => toggleActive(member.id)}>
-                          {member.active ? 'Desativar' : 'Ativar'}
-                        </button>
-                        <button type="button" className="small-button button danger" onClick={() => deleteMember(member.id)}>Deletar</button>
-                      </div>
+                      {isAdmin ? (
+                        <div className="actions-cell member-actions">
+                          <button
+                            type="button"
+                            className="small-button button success"
+                            onClick={() => startEdit(member.id)}
+                          >
+                            {isEditing ? 'Fechar edição' : 'Editar'}
+                          </button>
+                          <button
+                            type="button"
+                            className="small-button button"
+                            onClick={() => toggleActive(member.id)}
+                          >
+                            {member.active ? 'Desativar' : 'Ativar'}
+                          </button>
+                          <button
+                            type="button"
+                            className="small-button button danger"
+                            onClick={() => deleteMember(member.id)}
+                          >
+                            Deletar
+                          </button>
+                        </div>
+                      ) : null}
 
-                      <div className={`member-inline-editor-shell ${isEditing ? 'open' : ''}`}>
+                      <div className={`member-inline-editor-shell ${isAdmin && isEditing ? 'open' : ''}`}>
                         <div className="member-inline-editor">
                           <h3>Editar integrante</h3>
                           <div className="input-group form-grid">
                             <label>
                               Nome (obrigatório)
-                              <input value={editForm.name ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))} />
+                              <input
+                                value={editForm.name ?? ''}
+                                onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                              />
                             </label>
                             <label>
                               Apelido (opcional)
-                              <input value={editForm.nickname ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, nickname: event.target.value }))} />
+                              <input
+                                value={editForm.nickname ?? ''}
+                                onChange={(event) => setEditForm((prev) => ({ ...prev, nickname: event.target.value }))}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                              />
                             </label>
                             <label>
                               Telefone (opcional)
-                              <input value={editForm.phone ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                              <input
+                                value={editForm.phone ?? ''}
+                                onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))}
+                                placeholder="(00) 00000-0000"
+                                disabled={!isAdmin}
+                                title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                              />
                             </label>
 
-                            <MemberRestrictionsFields
-                              form={editForm}
-                              setForm={setEditForm}
-                              eventRules={eventRules}
-                              dateRestriction={editDateRestriction}
-                              setDateRestriction={setEditDateRestriction}
-                              periodRestriction={editPeriodRestriction}
-                              setPeriodRestriction={setEditPeriodRestriction}
-                            />
+                            <div className="full-width restriction-toggle-group">
+                              <button
+                                type="button"
+                                className="button secondary small-button restriction-toggle"
+                                onClick={() => setEditDateSectionOpen((current) => !current)}
+                              >
+                                + Indisponibilidade por data específica
+                              </button>
+                              <div className={`restriction-collapsible ${editDateSectionOpen ? 'open' : ''}`}>
+                                <div className="restriction-collapsible-inner">
+                                  <MemberRestrictionsFields
+                                    form={editForm}
+                                    setForm={setEditForm}
+                                    eventRules={eventRules}
+                                    dateRestriction={editDateRestriction}
+                                    setDateRestriction={setEditDateRestriction}
+                                    periodRestriction={editPeriodRestriction}
+                                    setPeriodRestriction={setEditPeriodRestriction}
+                                    isAdmin={isAdmin}
+                                    showDateSection
+                                    showPeriodSection={false}
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="button secondary small-button restriction-toggle"
+                                onClick={() => setEditPeriodSectionOpen((current) => !current)}
+                              >
+                                + Indisponibilidade por período
+                              </button>
+                              <div className={`restriction-collapsible ${editPeriodSectionOpen ? 'open' : ''}`}>
+                                <div className="restriction-collapsible-inner">
+                                  <MemberRestrictionsFields
+                                    form={editForm}
+                                    setForm={setEditForm}
+                                    eventRules={eventRules}
+                                    dateRestriction={editDateRestriction}
+                                    setDateRestriction={setEditDateRestriction}
+                                    periodRestriction={editPeriodRestriction}
+                                    setPeriodRestriction={setEditPeriodRestriction}
+                                    isAdmin={isAdmin}
+                                    showDateSection={false}
+                                    showPeriodSection
+                                  />
+                                </div>
+                              </div>
+                            </div>
 
                             <label className="full-width">
                               Observações (opcional)
-                              <textarea rows={3} value={editForm.notes ?? ''} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
+                              <textarea
+                                rows={3}
+                                value={editForm.notes ?? ''}
+                                onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                              />
                             </label>
 
                             <label className="full-width inline-checkbox-label">
@@ -301,14 +468,24 @@ export function MembersPage() {
                                 type="checkbox"
                                 checked={editForm.active ?? true}
                                 onChange={(event) => setEditForm((prev) => ({ ...prev, active: event.target.checked }))}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                               />
                               Integrante ativo
                             </label>
 
-                            <div className="form-actions full-width inline-edit-actions">
-                              <button type="button" className="button" onClick={handleSaveEdit}>Salvar alterações</button>
-                              <button type="button" className="button secondary" onClick={resetEditForm}>Cancelar</button>
-                            </div>
+                            {isAdmin ? (
+                              <div className="form-actions full-width inline-edit-actions">
+                                <button
+                                  type="button"
+                                  className="button"
+                                  onClick={handleSaveEdit}
+                                >
+                                  Salvar alterações
+                                </button>
+                                <button type="button" className="button secondary" onClick={resetEditForm}>Cancelar</button>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                         </div>
@@ -321,46 +498,109 @@ export function MembersPage() {
         </section>
 
         <section className="page-section">
-          <div className="card add-collapsible-card">
-            <button
-              type="button"
-              className={`button add-toggle-button ${isCreateOpen ? 'open' : ''}`}
-              aria-expanded={isCreateOpen}
-              onClick={() => setIsCreateOpen((current) => !current)}
-            >
-              + Adicionar novo integrante
-            </button>
+          <div id="add-integrante-section" className="add-collapsible-card">
+            {isAdmin ? (
+              <button
+                type="button"
+                className={`button add-toggle-button ${isCreateOpen ? 'open' : ''}`}
+                aria-expanded={isCreateOpen}
+                onClick={() => setIsCreateOpen((current) => !current)}
+              >
+                + Adicionar novo integrante
+              </button>
+            ) : null}
 
-            <div className={`collapsible-content ${isCreateOpen ? 'open' : ''}`}>
+            <div className={`collapsible-content ${isAdmin && isCreateOpen ? 'open' : ''}`}>
               <div className="collapsible-inner">
                 <h2 style={{ marginTop: 0 }}>Novo integrante</h2>
                 <div className="input-group form-grid">
                   <label>
                     Nome (obrigatório)
-                    <input value={createForm.name ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))} />
+                    <input
+                      value={createForm.name ?? ''}
+                      onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+                      disabled={!isAdmin}
+                      title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                    />
                   </label>
                   <label>
                     Apelido (opcional)
-                    <input value={createForm.nickname ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, nickname: event.target.value }))} />
+                    <input
+                      value={createForm.nickname ?? ''}
+                      onChange={(event) => setCreateForm((prev) => ({ ...prev, nickname: event.target.value }))}
+                      disabled={!isAdmin}
+                      title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                    />
                   </label>
                   <label>
                     Telefone (opcional)
-                    <input value={createForm.phone ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                    <input
+                      value={createForm.phone ?? ''}
+                      onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))}
+                      placeholder="(00) 00000-0000"
+                      disabled={!isAdmin}
+                      title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                    />
                   </label>
 
-                  <MemberRestrictionsFields
-                    form={createForm}
-                    setForm={setCreateForm}
-                    eventRules={eventRules}
-                    dateRestriction={createDateRestriction}
-                    setDateRestriction={setCreateDateRestriction}
-                    periodRestriction={createPeriodRestriction}
-                    setPeriodRestriction={setCreatePeriodRestriction}
-                  />
+                  <div className="full-width restriction-toggle-group">
+                    <button
+                      type="button"
+                      className="button secondary small-button restriction-toggle"
+                      onClick={() => setCreateDateSectionOpen((current) => !current)}
+                    >
+                      + Indisponibilidade por data específica
+                    </button>
+                    <div className={`restriction-collapsible ${createDateSectionOpen ? 'open' : ''}`}>
+                      <div className="restriction-collapsible-inner">
+                        <MemberRestrictionsFields
+                          form={createForm}
+                          setForm={setCreateForm}
+                          eventRules={eventRules}
+                          dateRestriction={createDateRestriction}
+                          setDateRestriction={setCreateDateRestriction}
+                          periodRestriction={createPeriodRestriction}
+                          setPeriodRestriction={setCreatePeriodRestriction}
+                          isAdmin={isAdmin}
+                          showDateSection
+                          showPeriodSection={false}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="button secondary small-button restriction-toggle"
+                      onClick={() => setCreatePeriodSectionOpen((current) => !current)}
+                    >
+                      + Indisponibilidade por período
+                    </button>
+                    <div className={`restriction-collapsible ${createPeriodSectionOpen ? 'open' : ''}`}>
+                      <div className="restriction-collapsible-inner">
+                        <MemberRestrictionsFields
+                          form={createForm}
+                          setForm={setCreateForm}
+                          eventRules={eventRules}
+                          dateRestriction={createDateRestriction}
+                          setDateRestriction={setCreateDateRestriction}
+                          periodRestriction={createPeriodRestriction}
+                          setPeriodRestriction={setCreatePeriodRestriction}
+                          isAdmin={isAdmin}
+                          showDateSection={false}
+                          showPeriodSection
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                   <label className="full-width">
                     Observações (opcional)
-                    <textarea rows={3} value={createForm.notes ?? ''} onChange={(event) => setCreateForm((prev) => ({ ...prev, notes: event.target.value }))} />
+                    <textarea
+                      rows={3}
+                      value={createForm.notes ?? ''}
+                      onChange={(event) => setCreateForm((prev) => ({ ...prev, notes: event.target.value }))}
+                      disabled={!isAdmin}
+                      title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+                    />
                   </label>
 
                   <label className="full-width inline-checkbox-label">
@@ -368,14 +608,24 @@ export function MembersPage() {
                       type="checkbox"
                       checked={createForm.active ?? true}
                       onChange={(event) => setCreateForm((prev) => ({ ...prev, active: event.target.checked }))}
+                      disabled={!isAdmin}
+                      title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                     />
                     Integrante ativo
                   </label>
 
-                  <div className="form-actions full-width">
-                    <button type="button" className="button" onClick={handleCreate}>Salvar integrante</button>
-                    <button type="button" className="button secondary" onClick={() => resetCreateForm(true)}>Cancelar</button>
-                  </div>
+                  {isAdmin ? (
+                    <div className="form-actions full-width add-integrante-actions">
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={handleCreate}
+                      >
+                        Salvar integrante
+                      </button>
+                      <button type="button" className="button secondary" onClick={() => resetCreateForm(true)}>Cancelar</button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
