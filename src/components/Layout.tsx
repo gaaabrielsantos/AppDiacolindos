@@ -116,7 +116,7 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
         onClick={handleSidebarClick}
       >
         <div className="brand">
-          {sidebarOpen ? <strong>Diacolindos</strong> : null}
+          {sidebarOpen ? <strong>IPB Mairinque</strong> : null}
         </div>
         {sidebarOpen ? (
           <div className="sidebar-access-group">

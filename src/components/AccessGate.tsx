@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAccessControl } from '../hooks/useAccessControl';
 
 export function AccessGate({
@@ -8,8 +9,9 @@ export function AccessGate({
   loginOpen: boolean;
   onClose: () => void;
 }) {
-  const { login, continueAsViewer, isInitializing } = useAccessControl();
-  const [email, setEmail] = useState('');
+  const { getDefaultPath, login, continueAsViewer, isInitializing } = useAccessControl();
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function AccessGate({
 
   const handleLogin = async () => {
     setIsSubmitting(true);
-    const result = await login(email, password);
+    const result = await login(username, password);
     setIsSubmitting(false);
 
     if (!result.success) {
@@ -27,17 +29,19 @@ export function AccessGate({
     }
 
     setError(null);
-    setEmail('');
+    setUsername('');
     setPassword('');
     onClose();
+    navigate(getDefaultPath(), { replace: true });
   };
 
   const handleContinueViewing = () => {
     continueAsViewer();
     setError(null);
-    setEmail('');
+    setUsername('');
     setPassword('');
     onClose();
+    navigate('/principal/dashboard', { replace: true });
   };
 
   return (
@@ -45,23 +49,23 @@ export function AccessGate({
       className="login-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label="Acesso ao projeto Diacolindos"
+      aria-label="Acesso ao projeto IPB Mairinque"
       onClick={handleContinueViewing}
     >
       <div className="login-card" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="login-close-button" aria-label="Fechar login" onClick={handleContinueViewing}>✕</button>
-        <h1>Diacolindos</h1>
+        <h1>IPB MAIRINQUE</h1>
         <p>Acesse como administrador para liberar edição completa do sistema.</p>
 
         <div className="input-group login-form-grid">
           <label>
-            E-mail
+            Usuário
             <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="usuario@exemplo.com"
-              autoComplete="email"
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Digite o usuário"
+              autoComplete="username"
               disabled={isSubmitting || isInitializing}
             />
           </label>
@@ -79,7 +83,7 @@ export function AccessGate({
           </label>
         </div>
 
-        {isInitializing ? <p className="muted-text">Verificando sessão...</p> : null}
+  {isInitializing ? <p className="muted-text">Carregando acesso...</p> : null}
         {error ? <p className="login-error">{error}</p> : null}
 
         <div className="login-actions">

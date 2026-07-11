@@ -73,7 +73,7 @@ export function buildSchedulePdf(
 
   if (monthKeys.length === 0) {
     doc.setFontSize(16);
-    doc.text('Diacolindos', 14, 20);
+    doc.text('IPB Mairinque', 14, 20);
     doc.setFontSize(14);
     doc.text('Escala de Diáconos', 14, 28);
     doc.setFontSize(11);
@@ -91,7 +91,7 @@ export function buildSchedulePdf(
       if (idx > 0) doc.addPage();
 
       doc.setFontSize(16);
-      doc.text('Diacolindos', 14, 21);
+      doc.text('IPB Mairinque', 14, 21);
       doc.setFontSize(14);
       doc.text('Escala de Diáconos', 14, 28);
       doc.setFontSize(10);
@@ -184,7 +184,7 @@ export function buildSchedulePdf(
   }
 
   const isoDate = new Date().toISOString().slice(0, 10);
-  const fileName = `escala-diacolindos-${isoDate}.pdf`;
+  const fileName = `escala-ipb-mairinque-${isoDate}.pdf`;
   const pdfDataUrl = doc.output('datauristring');
 
   return { doc, fileName, pdfDataUrl };
@@ -207,10 +207,10 @@ export function buildConsolidatedSchedulePdf(
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('Diacolindos', marginX, currentY);
+  doc.text('IPB Mairinque', marginX, currentY);
   currentY += 8;
   doc.setFontSize(14);
-  doc.text('Relatório geral consolidado', marginX, currentY);
+  doc.text('Relatório geral de escalas', marginX, currentY);
   currentY += 6;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -218,7 +218,7 @@ export function buildConsolidatedSchedulePdf(
   currentY += 10;
 
   if (sections.every((section) => section.schedule.length === 0)) {
-    doc.text('Nenhuma escala encontrada no período selecionado.', marginX, currentY);
+    doc.text('Nenhuma escala encontrada para o período selecionado.', marginX, currentY);
   }
 
   sections.forEach((section) => {
@@ -234,7 +234,7 @@ export function buildConsolidatedSchedulePdf(
     if (section.schedule.length === 0) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      doc.text('Nenhum evento no período selecionado.', marginX, currentY);
+      doc.text(`Nenhuma escala encontrada para ${MODULE_LABELS[section.moduleId]} neste período.`, marginX, currentY);
       currentY += 8;
       return;
     }
@@ -273,7 +273,7 @@ export function buildConsolidatedSchedulePdf(
   const isoDate = new Date().toISOString().slice(0, 10);
   return {
     doc,
-    fileName: `relatorio-geral-diacolindos-${isoDate}.pdf`,
+    fileName: `relatorio-geral-ipb-mairinque-${isoDate}.pdf`,
     pdfDataUrl: doc.output('datauristring'),
   };
 }

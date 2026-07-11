@@ -10,6 +10,32 @@ import { ScheduleAssignment } from '../utils/scheduleFunctions';
 
 type FilterMode = 'day' | 'week' | 'month' | 'custom';
 
+type ConsolidatedMember = {
+  id: string;
+  name: string;
+  functionLabel: string | null;
+};
+
+type ConsolidatedEntry = {
+  scheduleId: string;
+  date: string;
+  time: string;
+  eventName: string;
+  members: ConsolidatedMember[];
+  requiredMembers: number;
+  assignedCount: number;
+  missingCount: number;
+  statusText: string;
+  isIncomplete: boolean;
+};
+
+type ConsolidatedSection = {
+  moduleId: string;
+  moduleLabel: string;
+  entries: ConsolidatedEntry[];
+  incompleteEntries: number;
+};
+
 function formatBrDate(value: string) {
   if (!value) return '';
   const [year, month, day] = value.split('-');
@@ -43,6 +69,17 @@ function getMonthRange(monthValue: string) {
   };
 }
 
+function normalizeRange(startDate: string, endDate: string) {
+  if (!startDate || !endDate || startDate <= endDate) {
+    return { startDate, endDate };
+  }
+
+  return {
+    startDate: endDate,
+    endDate: startDate,
+  };
+}
+
 function filterModuleSchedule(moduleData: PrincipalModuleSchedule, startDate: string, endDate: string) {
   return {
     ...moduleData,
@@ -50,10 +87,11 @@ function filterModuleSchedule(moduleData: PrincipalModuleSchedule, startDate: st
   };
 }
 
-export function PrincipalDashboardPage() {
-  const { logout } = useAccessControl();
+export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => void }) {
+  const { accessMode, isAuthenticated, logout } = useAccessControl();
   const { modulesData, isLoading, errorMessage, defaultPeriod, refreshData } = usePrincipalDashboard();
   const today = useMemo(() => formatDate(new Date()), []);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [filterMode, setFilterMode] = useState<FilterMode>('month');
   const [selectedDay, setSelectedDay] = useState(today);
   const [selectedWeekAnchor, setSelectedWeekAnchor] = useState(today);
@@ -86,10 +124,12 @@ export function PrincipalDashboardPage() {
       };
     }
 
+    const normalizedCustomRange = normalizeRange(customStartDate, customEndDate);
+
     return {
-      startDate: customStartDate,
-      endDate: customEndDate,
-      label: `${formatBrDate(customStartDate)} a ${formatBrDate(customEndDate)}`,
+      startDate: normalizedCustomRange.startDate,
+      endDate: normalizedCustomRange.endDate,
+      label: `${formatBrDate(normalizedCustomRange.startDate)} a ${formatBrDate(normalizedCustomRange.endDate)}`,
     };
   }, [customEndDate, customStartDate, filterMode, selectedDay, selectedMonth, selectedWeekAnchor]);
 
@@ -98,64 +138,116 @@ export function PrincipalDashboardPage() {
     [modulesData, selectedPeriod.endDate, selectedPeriod.startDate]
   );
 
-  const groupedAssignments = useMemo(
-    () => filteredModules.map((moduleData) => ({
-      moduleId: moduleData.moduleId,
-      moduleLabel: moduleData.moduleLabel,
-      rows: moduleData.schedule.flatMap((item) => {
+  const consolidatedSections = useMemo<ConsolidatedSection[]>(
+    () => filteredModules.map((moduleData) => {
+      const entries = moduleData.schedule.map((item) => {
         const assignments: ScheduleAssignment[] = item.memberAssignments && item.memberAssignments.length > 0
           ? item.memberAssignments
           : item.memberIds.map((memberId) => ({ memberId }));
-
-        return assignments.map((assignment) => {
+        const members = assignments.map((assignment) => {
           const member = moduleData.members.find((candidate) => candidate.id === assignment.memberId);
+
           return {
-            scheduleId: item.id,
-            memberId: assignment.memberId,
-            date: item.date,
-            time: item.time,
-            eventName: item.eventName,
-            memberName: member?.nickname || member?.name || assignment.memberId,
-            functionLabel: assignment.functionKey ? getTeamFunctionLabel(assignment.functionKey) : '-',
+            id: assignment.memberId,
+            name: member?.nickname || member?.name || assignment.memberId,
+            functionLabel: assignment.functionKey ? getTeamFunctionLabel(assignment.functionKey) : null,
           };
         });
-      }),
-    })),
+        const assignedCount = members.length;
+        const missingCount = Math.max(item.requiredMembers - assignedCount, 0);
+
+        return {
+          scheduleId: item.id,
+          date: item.date,
+          time: item.time,
+          eventName: item.eventName,
+          members,
+          requiredMembers: item.requiredMembers,
+          assignedCount,
+          missingCount,
+          statusText: missingCount > 0
+            ? `Escala incompleta (${assignedCount}/${item.requiredMembers})`
+            : `Escala completa (${assignedCount}/${item.requiredMembers})`,
+          isIncomplete: missingCount > 0,
+        };
+      });
+
+      return {
+        moduleId: moduleData.moduleId,
+        moduleLabel: moduleData.moduleLabel,
+        entries,
+        incompleteEntries: entries.filter((entry) => entry.isIncomplete).length,
+      };
+    }),
     [filteredModules]
+  );
+
+  const allEntries = useMemo(
+    () => consolidatedSections.flatMap((section) => section.entries.map((entry) => ({
+      ...entry,
+      moduleId: section.moduleId,
+      moduleLabel: section.moduleLabel,
+    }))),
+    [consolidatedSections]
   );
 
   const summary = useMemo(() => {
     const uniqueScheduledMembers = new Set<string>();
-    groupedAssignments.forEach((group) => {
-      group.rows.forEach((row) => uniqueScheduledMembers.add(`${group.moduleId}:${row.memberId}`));
+    allEntries.forEach((entry) => {
+      entry.members.forEach((member) => uniqueScheduledMembers.add(`${entry.moduleId}:${member.id}`));
     });
 
-    const teamsStatus = filteredModules.map((moduleData) => {
-      const incompleteEvents = moduleData.schedule.filter((item) => item.memberIds.length < item.requiredMembers);
-      return {
-        moduleId: moduleData.moduleId,
-        moduleLabel: moduleData.moduleLabel,
-        hasEvents: moduleData.schedule.length > 0,
-        incompleteEvents,
-      };
-    });
-
-    const completeTeams = teamsStatus.filter((item) => item.hasEvents && item.incompleteEvents.length === 0).length;
-    const incompleteTeams = teamsStatus.filter((item) => item.incompleteEvents.length > 0).length;
-    const teamsWithoutEvents = teamsStatus.filter((item) => !item.hasEvents).length;
-    const alerts = teamsStatus.flatMap((item) =>
-      item.incompleteEvents.map((event) => `${item.moduleLabel}: ${event.date} ${event.time} - ${event.eventName} (${event.memberIds.length}/${event.requiredMembers})`)
+    const completeTeams = consolidatedSections.filter((section) => section.entries.length > 0 && section.incompleteEntries === 0).length;
+    const incompleteTeams = consolidatedSections.filter((section) => section.incompleteEntries > 0).length;
+    const teamsWithoutEvents = consolidatedSections.filter((section) => section.entries.length === 0).length;
+    const upcomingEntries = allEntries
+      .filter((entry) => entry.date >= today)
+      .sort((left, right) => {
+        const dateDiff = left.date.localeCompare(right.date);
+        if (dateDiff !== 0) return dateDiff;
+        return left.time.localeCompare(right.time);
+      });
+    const nextEvent = upcomingEntries[0];
+    const alerts = consolidatedSections.flatMap((section) =>
+      section.entries
+        .filter((entry) => entry.isIncomplete)
+        .map((entry) => `${section.moduleLabel}: ${formatBrDate(entry.date)} ${entry.time} - ${entry.eventName} (${entry.assignedCount}/${entry.requiredMembers})`)
     );
 
     return {
       totalPeople: uniqueScheduledMembers.size,
-      totalAssignments: groupedAssignments.reduce((sum, group) => sum + group.rows.length, 0),
+      totalAssignments: allEntries.reduce((sum, entry) => sum + entry.members.length, 0),
       completeTeams,
       incompleteTeams,
       teamsWithoutEvents,
+      upcomingEvents: upcomingEntries.length,
+      nextEventLabel: nextEvent
+        ? `${nextEvent.moduleLabel}: ${formatBrDate(nextEvent.date)} ${nextEvent.time} - ${nextEvent.eventName}`
+        : 'Nenhum próximo evento dentro do período selecionado.',
       alerts,
     };
-  }, [filteredModules, groupedAssignments]);
+  }, [allEntries, consolidatedSections, today]);
+
+  const nextEvents = useMemo(
+    () => allEntries
+      .filter((entry) => entry.date >= today)
+      .sort((left, right) => {
+        const dateDiff = left.date.localeCompare(right.date);
+        if (dateDiff !== 0) return dateDiff;
+        return left.time.localeCompare(right.time);
+      })
+      .slice(0, 5),
+    [allEntries, today]
+  );
+
+  const hasAnySchedule = allEntries.length > 0;
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((current) => ({
+      ...current,
+      [sectionId]: !current[sectionId],
+    }));
+  };
 
   const handleExportReport = () => {
     const { doc, fileName } = buildConsolidatedSchedulePdf(
@@ -178,19 +270,32 @@ export function PrincipalDashboardPage() {
               <div>
                 <h1 className="page-title" style={{ marginTop: 0, textAlign: 'left' }}>Dashboard Principal</h1>
                 <p className="muted-text" style={{ marginBottom: 0 }}>
-                  Consolidação somente leitura das escalas de Diaconia, Recepção, Mídias, Louvor, Cozinha e EBD.
+                  Consolidação somente leitura das escalas da IPB Mairinque por Diaconia, Recepção, Mídias, Louvor, Cozinha e EBD.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" className="button secondary" onClick={() => void refreshData()}>
-                  Atualizar dados
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {accessMode === 'viewer' ? (
+                  <button
+                    type="button"
+                    className="principal-admin-button"
+                    onClick={onOpenLogin}
+                    title="Administrador principal"
+                    aria-label="Administrador principal"
+                  >
+                    Administrador principal
+                  </button>
+                ) : null}
+                <button type="button" className="button secondary" onClick={() => void refreshData()} disabled={isLoading}>
+                  {isLoading ? 'Atualizando...' : 'Atualizar dados'}
                 </button>
                 <button type="button" className="button" onClick={handleExportReport} disabled={isLoading}>
                   Gerar relatório geral
                 </button>
-                <button type="button" className="button secondary" onClick={() => void logout()}>
-                  Sair
-                </button>
+                {isAuthenticated ? (
+                  <button type="button" className="button secondary" onClick={() => void logout()}>
+                    {accessMode === 'principal' ? 'Sair' : 'Encerrar acesso'}
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -260,69 +365,160 @@ export function PrincipalDashboardPage() {
               description={`${summary.totalAssignments} atribuições no período`}
             />
             <SummaryCard
-              title="Equipes completas"
+              title="Seções com escala completa"
               value={String(summary.completeTeams)}
-              description={summary.teamsWithoutEvents > 0 ? `${summary.teamsWithoutEvents} sem eventos no período` : 'Sem lacunas no período'}
+              description="Todas as escalas da seção estão completas no período selecionado"
             />
             <SummaryCard
-              title="Equipes incompletas"
+              title="Seções com escala incompleta"
               value={String(summary.incompleteTeams)}
               description={`${summary.alerts.length} alerta(s) de cobertura insuficiente`}
             />
+            <SummaryCard
+              title="Seções sem escala"
+              value={String(summary.teamsWithoutEvents)}
+              description="Seções sem nenhum evento escalado no período filtrado"
+            />
+            <SummaryCard
+              title="Próximos eventos do período"
+              value={String(summary.upcomingEvents)}
+              description={summary.nextEventLabel}
+            />
+            <SummaryCard
+              title="Período em análise"
+              value={selectedPeriod.label}
+              description={hasAnySchedule ? 'A visualização está consolidada por seção, data, horário, evento e integrantes.' : 'Nenhuma escala consolidada disponível para o filtro atual.'}
+            />
+          </div>
+        </section>
+
+        <section className="page-section">
+          <div className="grid-2">
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>Alertas globais</h2>
+              {isLoading ? <p>Carregando alertas...</p> : summary.alerts.length === 0 ? <p>Nenhuma escala incompleta no período selecionado.</p> : (
+                <ul className="principal-inline-list">
+                  {summary.alerts.map((alert) => (
+                    <li key={alert}>{alert}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>Próximos eventos</h2>
+              {isLoading ? <p>Carregando próximos eventos...</p> : nextEvents.length === 0 ? <p>Nenhum próximo evento dentro do período selecionado.</p> : (
+                <ul className="principal-inline-list">
+                  {nextEvents.map((entry) => (
+                    <li key={`${entry.moduleId}-${entry.scheduleId}`}>
+                      <strong>{entry.moduleLabel}</strong>: {formatBrDate(entry.date)} às {entry.time} - {entry.eventName}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </section>
 
         <section className="page-section">
           <div className="card">
-            <h2 style={{ marginTop: 0 }}>Alertas globais</h2>
-            {isLoading ? <p>Carregando alertas...</p> : summary.alerts.length === 0 ? <p>Nenhum evento incompleto no período selecionado.</p> : (
-              <ul>
-                {summary.alerts.map((alert) => (
-                  <li key={alert}>{alert}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-
-        <section className="page-section">
-          <div className="card">
-            <h2 style={{ marginTop: 0 }}>Escalas consolidadas por equipe</h2>
+            <h2 style={{ marginTop: 0 }}>Escalas consolidadas por seção</h2>
             <p className="muted-text">Somente leitura. Esta área não permite editar integrantes, eventos ou escalas de outros módulos.</p>
 
-            {isLoading ? <p>Carregando escalas...</p> : groupedAssignments.map((group) => (
-              <div key={group.moduleId} style={{ marginTop: 18 }}>
-                <h3 style={{ marginBottom: 10 }}>{group.moduleLabel}</h3>
-                {group.rows.length === 0 ? (
-                  <p className="muted-text">Nenhuma pessoa escalada neste período.</p>
-                ) : (
-                  <div className="table-wrap">
-                    <table className="table responsive-table">
-                      <thead>
-                        <tr>
-                          <th>Data</th>
-                          <th>Horário</th>
-                          <th>Evento</th>
-                          <th>Integrante</th>
-                          <th>Função</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.rows.map((row) => (
-                          <tr key={`${row.scheduleId}-${row.memberId}-${row.functionLabel}`}>
-                            <td data-label="Data">{formatBrDate(row.date)}</td>
-                            <td data-label="Horário">{row.time}</td>
-                            <td data-label="Evento">{row.eventName}</td>
-                            <td data-label="Integrante">{row.memberName}</td>
-                            <td data-label="Função">{row.functionLabel}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+            {isLoading ? <p>Carregando escalas...</p> : !hasAnySchedule ? (
+              <div className="principal-empty-state">
+                <p style={{ margin: 0 }}>Nenhuma escala encontrada para o período selecionado.</p>
               </div>
-            ))}
+            ) : null}
+
+            <div className="principal-section-list">
+              {consolidatedSections.map((section) => (
+                <section key={section.moduleId} className="principal-section-card">
+                  <button
+                    type="button"
+                    className="principal-section-toggle"
+                    onClick={() => toggleSection(section.moduleId)}
+                    aria-expanded={expandedSections[section.moduleId] ? 'true' : 'false'}
+                  >
+                    <div className="principal-section-toggle-main">
+                      <span className="principal-section-toggle-icon">{expandedSections[section.moduleId] ? '−' : '+'}</span>
+                      <div>
+                        <h3 style={{ margin: 0 }}>{section.moduleLabel}</h3>
+                        <p className="muted-text" style={{ margin: '6px 0 0' }}>
+                          {section.entries.length} evento(s) no período
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`principal-status-pill ${section.incompleteEntries > 0 ? 'is-warning' : section.entries.length === 0 ? 'is-muted' : 'is-success'}`}>
+                      {section.entries.length === 0
+                        ? 'Sem escala no período'
+                        : section.incompleteEntries > 0
+                          ? `${section.incompleteEntries} escala(s) incompleta(s)`
+                          : 'Escalas completas'}
+                    </span>
+                  </button>
+
+                  <div className={`principal-section-body ${expandedSections[section.moduleId] ? 'is-open' : ''}`}>
+                    <div className="principal-section-body-inner">
+                      {section.entries.length === 0 ? (
+                        <p className="muted-text" style={{ margin: 0 }}>
+                          {`Nenhuma escala encontrada para ${section.moduleLabel} neste período.`}
+                        </p>
+                      ) : (
+                        <div className="principal-entry-list">
+                          {section.entries.map((entry) => (
+                            <article key={entry.scheduleId} className="principal-entry-card">
+                              <div className="principal-entry-top">
+                                <div>
+                                  <p className="principal-eyebrow">Data</p>
+                                  <strong>{formatBrDate(entry.date)}</strong>
+                                </div>
+                                <span className={`principal-status-pill ${entry.isIncomplete ? 'is-warning' : 'is-success'}`}>
+                                  {entry.statusText}
+                                </span>
+                              </div>
+
+                              <div className="principal-entry-meta">
+                                <div>
+                                  <p className="principal-eyebrow">Horário</p>
+                                  <strong>{entry.time}</strong>
+                                </div>
+                                <div>
+                                  <p className="principal-eyebrow">Evento</p>
+                                  <strong>{entry.eventName}</strong>
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="principal-eyebrow">Integrantes escalados</p>
+                                {entry.members.length === 0 ? (
+                                  <p className="muted-text" style={{ margin: 0 }}>Nenhum integrante escalado.</p>
+                                ) : (
+                                  <ul className="principal-member-list">
+                                    {entry.members.map((member) => (
+                                      <li key={`${entry.scheduleId}-${member.id}`} className="principal-member-item">
+                                        <span>{member.name}</span>
+                                        {member.functionLabel ? <span className="principal-member-function">{member.functionLabel}</span> : null}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+
+                              {entry.missingCount > 0 ? (
+                                <p className="muted-text" style={{ margin: 0 }}>
+                                  Faltam {entry.missingCount} integrante(s) para completar esta escala.
+                                </p>
+                              ) : null}
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              ))}
+            </div>
           </div>
         </section>
       </main>

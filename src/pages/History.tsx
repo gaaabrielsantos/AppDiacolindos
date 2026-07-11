@@ -51,12 +51,33 @@ export function HistoryPage() {
     const periodStart = startDate || (filteredSchedule[0]?.date ?? new Date().toISOString().slice(0, 10));
     const periodEnd = endDate || (filteredSchedule[filteredSchedule.length - 1]?.date ?? new Date().toISOString().slice(0, 10));
     const { doc } = buildSchedulePdf(filteredSchedule, members, periodStart, periodEnd);
-    const filePrefix = moduleId === 'diaconia' ? 'escala-diacolindos' : `escala-${moduleId}`;
+    const filePrefix = moduleId === 'diaconia' ? 'escala-ipb-mairinque' : `escala-${moduleId}`;
     doc.save(`${filePrefix}-${periodStart}.pdf`);
   };
 
+  const dataUrlToBlob = (dataUrl: string) => {
+    const [header, base64] = dataUrl.split(',');
+    const mimeMatch = header.match(/data:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return new Blob([bytes], { type: mime });
+  };
+
   const openPdf = (dataUrl: string) => {
-    window.open(dataUrl, '_blank');
+    const blob = dataUrlToBlob(dataUrl);
+    const blobUrl = URL.createObjectURL(blob);
+
+    window.open(blobUrl, '_blank');
+
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 60_000);
   };
 
   const downloadPdf = (dataUrl: string, fileName: string) => {

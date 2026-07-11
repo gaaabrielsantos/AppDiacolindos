@@ -8,8 +8,8 @@ import { HistoryPage } from './pages/History';
 import { AppProvider } from './hooks/useAppState';
 import { AccessControlProvider, useAccessControl } from './hooks/useAccessControl';
 import { AccessGate } from './components/AccessGate';
-import { useEffect, useRef, useState } from 'react';
-import { AppModuleId, buildModulePath, DEFAULT_MODULE_ID, isAppModuleId } from './config/modules';
+import { useEffect, useState } from 'react';
+import { AppModuleId, isAppModuleId } from './config/modules';
 import { ModuleProvider } from './hooks/useModule';
 import { PrincipalDashboardPage } from './pages/PrincipalDashboard';
 
@@ -45,7 +45,7 @@ function ModuleRouteResolver({ onOpenLogin }: { onOpenLogin: () => void }) {
   const { isAuthenticated, canAccessModule, getDefaultPath } = useAccessControl();
 
   if (!moduleId || !isAppModuleId(moduleId)) {
-    return <Navigate to={buildModulePath(DEFAULT_MODULE_ID)} replace />;
+    return <Navigate to={getDefaultPath()} replace />;
   }
 
   if (isAuthenticated && !canAccessModule(moduleId)) {
@@ -55,7 +55,7 @@ function ModuleRouteResolver({ onOpenLogin }: { onOpenLogin: () => void }) {
   return <ModuleShell moduleId={moduleId} onOpenLogin={onOpenLogin} />;
 }
 
-function PrincipalRouteResolver() {
+function PrincipalRouteResolver({ onOpenLogin }: { onOpenLogin: () => void }) {
   const location = useLocation();
   const { isInitializing, canAccessPrincipal, getDefaultPath } = useAccessControl();
 
@@ -65,35 +65,26 @@ function PrincipalRouteResolver() {
     return <Navigate to={getDefaultPath()} replace state={{ from: location }} />;
   }
 
-  return <PrincipalDashboardPage />;
+  return <PrincipalDashboardPage onOpenLogin={onOpenLogin} />;
 }
 
 function AppContent() {
   const { isAuthenticated, isInitializing, getDefaultPath } = useAccessControl();
   const [loginOpen, setLoginOpen] = useState(false);
-  const hasInitializedGate = useRef(false);
 
   useEffect(() => {
-    if (isInitializing) return;
-
-    if (!hasInitializedGate.current) {
-      setLoginOpen(!isAuthenticated);
-      hasInitializedGate.current = true;
-      return;
-    }
-
     if (isAuthenticated) {
       setLoginOpen(false);
     }
-  }, [isAuthenticated, isInitializing]);
+  }, [isAuthenticated]);
 
   return (
     <>
       <Routes>
-        <Route path="/" element={<Navigate to={buildModulePath(DEFAULT_MODULE_ID)} replace />} />
-        <Route path="/principal/dashboard" element={<PrincipalRouteResolver />} />
+        <Route path="/" element={<Navigate to="/principal/dashboard" replace />} />
+        <Route path="/principal/dashboard" element={<PrincipalRouteResolver onOpenLogin={() => setLoginOpen(true)} />} />
         <Route path="/:moduleId/*" element={<ModuleRouteResolver onOpenLogin={() => setLoginOpen(true)} />} />
-        <Route path="*" element={<Navigate to={isAuthenticated ? getDefaultPath() : buildModulePath(DEFAULT_MODULE_ID)} replace />} />
+        <Route path="*" element={<Navigate to={getDefaultPath()} replace />} />
       </Routes>
       {!isInitializing ? <AccessGate loginOpen={loginOpen} onClose={() => setLoginOpen(false)} /> : null}
     </>
