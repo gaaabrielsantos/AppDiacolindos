@@ -8,21 +8,26 @@ export function AccessGate({
   loginOpen: boolean;
   onClose: () => void;
 }) {
-  const { login, continueAsViewer } = useAccessControl();
-  const [username, setUsername] = useState('');
+  const { login, continueAsViewer, isInitializing } = useAccessControl();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!loginOpen) return null;
 
-  const handleLogin = () => {
-    const result = login(username, password);
+  const handleLogin = async () => {
+    setIsSubmitting(true);
+    const result = await login(email, password);
+    setIsSubmitting(false);
+
     if (!result.success) {
       setError(result.message);
       return;
     }
+
     setError(null);
-    setUsername('');
+    setEmail('');
     setPassword('');
     onClose();
   };
@@ -30,7 +35,7 @@ export function AccessGate({
   const handleContinueViewing = () => {
     continueAsViewer();
     setError(null);
-    setUsername('');
+    setEmail('');
     setPassword('');
     onClose();
   };
@@ -50,12 +55,14 @@ export function AccessGate({
 
         <div className="input-group login-form-grid">
           <label>
-            Nome de usuário
+            E-mail
             <input
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="Digite seu usuário"
-              autoComplete="username"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="usuario@exemplo.com"
+              autoComplete="email"
+              disabled={isSubmitting || isInitializing}
             />
           </label>
 
@@ -67,15 +74,21 @@ export function AccessGate({
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Digite sua senha"
               autoComplete="current-password"
+              disabled={isSubmitting || isInitializing}
             />
           </label>
         </div>
 
+        {isInitializing ? <p className="muted-text">Verificando sessão...</p> : null}
         {error ? <p className="login-error">{error}</p> : null}
 
         <div className="login-actions">
-          <button type="button" className="button" onClick={handleLogin}>Entrar</button>
-          <button type="button" className="button secondary" onClick={handleContinueViewing}>Continuar apenas visualizando</button>
+          <button type="button" className="button" onClick={() => void handleLogin()} disabled={isSubmitting || isInitializing}>
+            {isSubmitting ? 'Entrando...' : 'Entrar'}
+          </button>
+          <button type="button" className="button secondary" onClick={handleContinueViewing} disabled={isSubmitting}>
+            Continuar apenas visualizando
+          </button>
         </div>
       </div>
     </div>

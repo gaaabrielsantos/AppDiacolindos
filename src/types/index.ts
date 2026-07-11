@@ -1,4 +1,10 @@
+import type { AppModuleId } from '../config/modules';
+import type { TeamFunctionKey } from '../config/moduleFunctions';
+import type { EventRoleRequirement, ScheduleAssignment } from '../utils/scheduleFunctions';
+
 export type WeekDay = 'domingo' | 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado';
+
+export type { AppModuleId };
 
 export interface Unavailability {
   id: string;
@@ -16,6 +22,7 @@ export interface Member {
   nickname?: string;
   phone?: string;
   active: boolean;
+  functions?: TeamFunctionKey[];
   unavailability: Unavailability[];
   notes?: string;
 }
@@ -31,6 +38,7 @@ export interface EventRule {
   recurrence: 'nenhuma' | 'semanal' | 'mensal' | 'anual';
   dayOfMonth?: number;
   requiredMembers: number;
+  roleRequirements?: EventRoleRequirement[];
   notes?: string;
 }
 
@@ -42,6 +50,7 @@ export interface ScheduleItem {
   time: string;
   eventName: string;
   memberIds: string[];
+  memberAssignments?: ScheduleAssignment[];
   requiredMembers: number;
   status: 'confirmado' | 'pendente' | 'alterado';
 }
@@ -66,6 +75,7 @@ export interface SummaryCard {
 
 export interface ScalePdfHistoryRecord {
   id: string;
+  moduleId?: AppModuleId;
   fileName: string;
   generatedAt: string;
   periodStart: string;

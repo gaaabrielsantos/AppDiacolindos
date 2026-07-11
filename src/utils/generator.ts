@@ -1,5 +1,13 @@
 import { EventRule, Member, ScheduleItem } from '../types';
-import { datesInRange, formatDate, getWeekDay, isDateBetween } from './date';
+import { datesInRange, formatDate, getWeekDay } from './date';
+import {
+  buildRoleSlots,
+  formatRoleRequirements,
+  getRequiredMembersCount,
+  isMemberAvailableForEvent,
+  memberHasFunction,
+  ScheduleAssignment,
+} from './scheduleFunctions';
 
 interface BuildSchedulePayload {
   members: Member[];
@@ -26,23 +34,14 @@ export function buildSchedule(payload: BuildSchedulePayload) {
   });
 
   const schedule: ScheduleItem[] = eventDates.map((event) => {
-    const eligible = activeMembers.filter((member) => isEligible(member, event.id, event.date));
-    const chosenIds: string[] = [];
+    const requiredMembers = getRequiredMembersCount(event);
+    const { chosenIds, assignments } = assignMembersToEvent(event, activeMembers, participationCount, lastAssignedDate);
 
-    while (chosenIds.length < event.requiredMembers) {
-      const availableNow = eligible.filter((m) => !chosenIds.includes(m.id));
-      if (availableNow.length === 0) break;
-
-      const chosen = balancedRandomPick(availableNow, participationCount, lastAssignedDate, activeMembers, event.date);
-      if (!chosen) break;
-      chosenIds.push(chosen.id);
-      participationCount[chosen.id] += 1;
-      lastAssignedDate[chosen.id] = event.date;
-    }
-
-    const incomplete = chosenIds.length < event.requiredMembers;
+    const incomplete = chosenIds.length < requiredMembers;
     if (incomplete) {
-      alerts.push(`Escala incompleta em ${event.name} (${event.date} ${event.time}): necessários ${event.requiredMembers}, disponíveis ${chosenIds.length}.`);
+      const roleSummary = formatRoleRequirements(event);
+      const detail = roleSummary ? ` Requisitos: ${roleSummary}.` : '';
+      alerts.push(`Escala incompleta em ${event.name} (${event.date} ${event.time}): necessários ${requiredMembers}, disponíveis ${chosenIds.length}.${detail}`);
     }
 
     return {
@@ -53,7 +52,8 @@ export function buildSchedule(payload: BuildSchedulePayload) {
       time: event.time,
       eventName: event.name,
       memberIds: chosenIds,
-      requiredMembers: event.requiredMembers,
+      memberAssignments: assignments,
+      requiredMembers,
       status: incomplete ? 'pendente' : 'confirmado',
     };
   });
@@ -93,17 +93,57 @@ function expandEvents(eventRules: EventRule[], startDate: string, endDate: strin
   });
 }
 
-function isEligible(member: Member, eventId: string, date: string) {
-  if (!member.active) return false;
-  if (!member.unavailability || member.unavailability.length === 0) return true;
+function assignMembersToEvent(
+  event: EventRule & { date: string },
+  activeMembers: Member[],
+  participationCount: Record<string, number>,
+  lastAssignedDate: Record<string, string | undefined>
+) {
+  const eligible = activeMembers.filter((member) => isMemberAvailableForEvent(member, event.id, event.date));
+  const roleSlots = buildRoleSlots(event);
 
-  for (const item of member.unavailability) {
-    if (item.type === 'evento' && item.eventId === eventId) return false;
-    if (item.type === 'data' && item.date === date) return false;
-    if (item.type === 'periodo' && item.from && item.to && isDateBetween(date, item.from, item.to)) return false;
+  if (roleSlots.length === 0) {
+    const chosenIds: string[] = [];
+
+    while (chosenIds.length < event.requiredMembers) {
+      const availableNow = eligible.filter((member) => !chosenIds.includes(member.id));
+      if (availableNow.length === 0) break;
+
+      const chosen = balancedRandomPick(availableNow, participationCount, lastAssignedDate, activeMembers, event.date);
+      if (!chosen) break;
+      chosenIds.push(chosen.id);
+      participationCount[chosen.id] += 1;
+      lastAssignedDate[chosen.id] = event.date;
+    }
+
+    return {
+      chosenIds,
+      assignments: chosenIds.map((memberId) => ({ memberId })),
+    };
   }
 
-  return true;
+  const chosenIds: string[] = [];
+  const assignments: ScheduleAssignment[] = [];
+  const sortedRoleSlots = [...roleSlots].sort((left, right) => {
+    const leftCount = eligible.filter((member) => memberHasFunction(member, left)).length;
+    const rightCount = eligible.filter((member) => memberHasFunction(member, right)).length;
+    return leftCount - rightCount;
+  });
+
+  sortedRoleSlots.forEach((functionKey) => {
+    const availableNow = eligible.filter((member) => !chosenIds.includes(member.id) && memberHasFunction(member, functionKey));
+    if (availableNow.length === 0) return;
+
+    const chosen = balancedRandomPick(availableNow, participationCount, lastAssignedDate, activeMembers, event.date);
+    if (!chosen) return;
+
+    chosenIds.push(chosen.id);
+    assignments.push({ memberId: chosen.id, functionKey });
+    participationCount[chosen.id] += 1;
+    lastAssignedDate[chosen.id] = event.date;
+  });
+
+  return { chosenIds, assignments };
 }
 
 function balancedRandomPick(

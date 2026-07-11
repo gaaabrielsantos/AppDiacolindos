@@ -1,8 +1,10 @@
 import { Dispatch, SetStateAction, useMemo, useState } from 'react';
 import { EventRule, WeekDay } from '../types';
+import { getModuleFunctionConfig } from '../config/moduleFunctions';
 import { useAppState } from '../hooks/useAppState';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
+import { formatRoleRequirements, getRequiredMembersCount } from '../utils/scheduleFunctions';
 
 const weekdays: WeekDay[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
@@ -18,6 +20,7 @@ const emptyForm = (): Partial<EventRule> => ({
   time: '09:00',
   recurrence: 'semanal',
   requiredMembers: 1,
+  roleRequirements: [],
 });
 
 function formatEventType(type?: EventType) {
@@ -33,18 +36,40 @@ function formatRecurrence(rule: EventRule) {
 }
 
 function EventFormFields({
+  moduleId,
   form,
   setForm,
   onSave,
   onCancel,
   saveLabel,
 }: {
+  moduleId: ReturnType<typeof useAppState>['moduleId'];
   form: Partial<EventRule>;
   setForm: Dispatch<SetStateAction<Partial<EventRule>>>;
   onSave: () => void;
   onCancel: () => void;
   saveLabel: string;
 }) {
+  const functionConfig = getModuleFunctionConfig(moduleId);
+
+  const updateRoleRequirement = (functionKey: NonNullable<EventRule['roleRequirements']>[number]['functionKey'], quantity: number) => {
+    setForm((prev) => {
+      const current = prev.roleRequirements ?? [];
+      const next = current.filter((item) => item.functionKey !== functionKey);
+      if (quantity > 0) {
+        next.push({ functionKey, quantity });
+      }
+
+      return {
+        ...prev,
+        roleRequirements: next,
+        requiredMembers: functionConfig?.eventRequirementsMode === 'required'
+          ? getRequiredMembersCount({ requiredMembers: 0, roleRequirements: next })
+          : prev.requiredMembers,
+      };
+    });
+  };
+
   const applyTypeDefaults = (type: EventType) => {
     setForm((prev) => {
       if (type === 'especifico') {
@@ -144,15 +169,50 @@ function EventFormFields({
         </>
       )}
 
-      <label>
-        Quantidade de integrantes necessários
-        <input
-          type="number"
-          min={1}
-          value={form.requiredMembers ?? 1}
-          onChange={(event) => setForm((prev) => ({ ...prev, requiredMembers: Number(event.target.value) }))}
-        />
-      </label>
+      {functionConfig?.eventRequirementsMode !== 'required' ? (
+        <label>
+          Quantidade de integrantes necessários
+          <input
+            type="number"
+            min={1}
+            value={form.requiredMembers ?? 1}
+            onChange={(event) => setForm((prev) => ({ ...prev, requiredMembers: Number(event.target.value) }))}
+          />
+        </label>
+      ) : null}
+
+      {functionConfig ? (
+        <div className="full-width" style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <strong>
+              {functionConfig.eventRequirementsMode === 'required'
+                ? 'Quantidade necessária por função'
+                : 'Necessidades por função (opcional)'}
+            </strong>
+            <p className="muted-text" style={{ margin: '4px 0 0' }}>
+              {functionConfig.eventRequirementsMode === 'required'
+                ? 'A quantidade total será calculada a partir das funções preenchidas.'
+                : 'Se preencher alguma função, a escala passará a considerar essas necessidades específicas.'}
+            </p>
+          </div>
+          <div className="form-grid">
+            {functionConfig.options.map((option) => {
+              const quantity = (form.roleRequirements ?? []).find((item) => item.functionKey === option.key)?.quantity ?? 0;
+              return (
+                <label key={option.key}>
+                  {option.label}
+                  <input
+                    type="number"
+                    min={0}
+                    value={quantity}
+                    onChange={(event) => updateRoleRequirement(option.key, Number(event.target.value))}
+                  />
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <label className="full-width">
         Observações
@@ -174,7 +234,7 @@ function EventFormFields({
 
 export function EventsPage() {
   const { isAdmin } = useAccessControl();
-  const { eventRules, setEventRules, schedule, updateEventRule } = useAppState();
+  const { moduleId, eventRules, createEventRule, deleteEventRule, schedule, updateEventRule } = useAppState();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<Partial<EventRule>>(emptyForm());
@@ -212,13 +272,23 @@ export function EventsPage() {
   };
 
   const buildPayload = (form: Partial<EventRule>): Partial<EventRule> | null => {
+    const functionConfig = getModuleFunctionConfig(moduleId);
     const name = form.name?.trim();
     const type = form.type ?? 'recorrente';
     const recurrence = form.recurrence ?? 'semanal';
-    const requiredMembers = Number(form.requiredMembers ?? 0);
+    const roleRequirements = (form.roleRequirements ?? []).filter((item) => item.quantity > 0);
+    const roleBasedRequiredMembers = getRequiredMembersCount({ requiredMembers: 0, roleRequirements });
+    const requiredMembers = roleRequirements.length > 0
+      ? roleBasedRequiredMembers
+      : Number(form.requiredMembers ?? 0);
 
     if (!name || !form.time || requiredMembers < 1) {
       alert('Preencha nome, horário e quantidade de integrantes (mínimo 1).');
+      return null;
+    }
+
+    if (functionConfig?.eventRequirementsMode === 'required' && roleRequirements.length === 0) {
+      alert('Defina pelo menos uma função com quantidade maior que zero para este módulo.');
       return null;
     }
 
@@ -236,6 +306,7 @@ export function EventsPage() {
         time: form.time ?? '09:00',
         recurrence: 'nenhuma',
         requiredMembers,
+        roleRequirements,
         notes: form.notes,
       };
     }
@@ -250,6 +321,7 @@ export function EventsPage() {
         time: form.time ?? '09:00',
         recurrence,
         requiredMembers,
+        roleRequirements,
         notes: form.notes,
         date: undefined,
       };
@@ -266,6 +338,7 @@ export function EventsPage() {
         recurrence,
         dayOfMonth: form.dayOfMonth,
         requiredMembers,
+        roleRequirements,
         notes: form.notes,
         date: undefined,
       };
@@ -285,6 +358,7 @@ export function EventsPage() {
         time: form.time ?? '09:00',
         recurrence: 'nenhuma',
         requiredMembers,
+        roleRequirements,
         notes: form.notes,
       };
     }
@@ -299,11 +373,12 @@ export function EventsPage() {
       time: form.time ?? '09:00',
       recurrence: 'anual',
       requiredMembers,
+      roleRequirements,
       notes: form.notes,
     };
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
@@ -322,14 +397,16 @@ export function EventsPage() {
       recurrence: payload.recurrence ?? 'semanal',
       dayOfMonth: payload.dayOfMonth,
       requiredMembers: payload.requiredMembers ?? 1,
+      roleRequirements: payload.roleRequirements ?? [],
       notes: payload.notes,
     };
 
-    setEventRules((current) => [...current, eventToCreate]);
+    const wasCreated = await createEventRule(eventToCreate);
+    if (!wasCreated) return;
     resetCreateForm(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
@@ -347,31 +424,33 @@ export function EventsPage() {
 
       if (!option || option.toLowerCase() === 'cancelar') return;
       const mode = option.toLowerCase() === 'atual' ? 'atual' : 'proximas';
-      updateEventRule(editingId, payload, mode);
+      const wasUpdated = await updateEventRule(editingId, payload, mode);
+      if (!wasUpdated) return;
     } else {
-      updateEventRule(editingId, payload, 'proximas');
+      const wasUpdated = await updateEventRule(editingId, payload, 'proximas');
+      if (!wasUpdated) return;
     }
 
     closeEdit();
   };
 
-  const removeEvent = (id: string) => {
+  const removeEvent = async (id: string) => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
     if (!confirm('Deseja realmente deletar este evento?')) return;
-    setEventRules((current) => current.filter((item) => item.id !== id));
+    await deleteEventRule(id);
   };
 
-  const toggleActive = (id: string) => {
+  const toggleActive = async (id: string) => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
     const selected = eventRules.find((eventRule) => eventRule.id === id);
     if (!selected) return;
-    updateEventRule(id, { active: !(selected.active ?? true) }, 'proximas');
+    await updateEventRule(id, { active: !(selected.active ?? true) }, 'proximas');
   };
 
   const recurringCount = eventRules.filter((rule) => rule.type === 'recorrente').length;
@@ -407,7 +486,12 @@ export function EventsPage() {
                     <td data-label="Evento">{rule.name}</td>
                     <td data-label="Data ou dia">{rule.type === 'especifico' ? rule.date : rule.recurrence === 'mensal' ? `Dia ${rule.dayOfMonth ?? '-'}` : rule.recurrence === 'anual' || rule.recurrence === 'nenhuma' ? rule.date : rule.weekday}</td>
                     <td data-label="Horário">{rule.time}</td>
-                    <td data-label="Qtd. necessária">{rule.requiredMembers}</td>
+                    <td data-label="Qtd. necessária">
+                      <div>{rule.requiredMembers}</div>
+                      {rule.roleRequirements && rule.roleRequirements.length > 0 ? (
+                        <small className="muted-text">{formatRoleRequirements(rule)}</small>
+                      ) : null}
+                    </td>
                     <td data-label="Tipo">{formatEventType(rule.type)}</td>
                     <td data-label="Recorrência">{formatRecurrence(rule)}</td>
                     <td data-label="Status">{rule.active === false ? 'Inativo' : 'Ativo'}</td>
@@ -423,14 +507,14 @@ export function EventsPage() {
                         <button
                           type="button"
                           className="small-button button"
-                          onClick={() => toggleActive(rule.id)}
+                          onClick={() => void toggleActive(rule.id)}
                         >
                           {rule.active === false ? 'Ativar' : 'Desativar'}
                         </button>
                         <button
                           type="button"
                           className="small-button button danger"
-                          onClick={() => removeEvent(rule.id)}
+                          onClick={() => void removeEvent(rule.id)}
                         >
                           Deletar
                         </button>
@@ -467,9 +551,10 @@ export function EventsPage() {
               <div className="collapsible-inner">
                 <h2 style={{ marginTop: 0 }}>Novo evento</h2>
                 <EventFormFields
+                  moduleId={moduleId}
                   form={createForm}
                   setForm={setCreateForm}
-                  onSave={handleCreate}
+                  onSave={() => void handleCreate()}
                   onCancel={() => resetCreateForm(true)}
                   saveLabel="Salvar evento"
                 />
@@ -485,9 +570,10 @@ export function EventsPage() {
             <div className="card">
               <h2 style={{ marginTop: 0 }}>Editar evento</h2>
               <EventFormFields
+                moduleId={moduleId}
                 form={editForm}
                 setForm={setEditForm}
-                onSave={handleSaveEdit}
+                onSave={() => void handleSaveEdit()}
                 onCancel={closeEdit}
                 saveLabel="Salvar edição"
               />

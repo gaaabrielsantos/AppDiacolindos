@@ -6,7 +6,7 @@ import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
 
 export function HistoryPage() {
   const { isAdmin } = useAccessControl();
-  const { history, schedule, members, scalePdfHistory, deleteScalePdfHistory } = useAppState();
+  const { moduleId, history, schedule, members, scalePdfHistory, deleteScalePdfHistory } = useAppState();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -51,7 +51,8 @@ export function HistoryPage() {
     const periodStart = startDate || (filteredSchedule[0]?.date ?? new Date().toISOString().slice(0, 10));
     const periodEnd = endDate || (filteredSchedule[filteredSchedule.length - 1]?.date ?? new Date().toISOString().slice(0, 10));
     const { doc } = buildSchedulePdf(filteredSchedule, members, periodStart, periodEnd);
-    doc.save(`escala-diacolindos-${periodStart}.pdf`);
+    const filePrefix = moduleId === 'diaconia' ? 'escala-diacolindos' : `escala-${moduleId}`;
+    doc.save(`${filePrefix}-${periodStart}.pdf`);
   };
 
   const openPdf = (dataUrl: string) => {
@@ -67,14 +68,14 @@ export function HistoryPage() {
     document.body.removeChild(anchor);
   };
 
-  const handleDeleteRecord = (recordId: string) => {
+  const handleDeleteRecord = async (recordId: string) => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
     const confirmDelete = confirm('Tem certeza que deseja deletar este histórico? O PDF salvo desta escala também será removido.');
     if (!confirmDelete) return;
-    deleteScalePdfHistory(recordId);
+    await deleteScalePdfHistory(recordId);
   };
 
   return (
@@ -118,7 +119,7 @@ export function HistoryPage() {
                           <button className="small-button button" onClick={() => downloadPdf(record.pdfDataUrl, record.fileName)}>Baixar PDF</button>
                           <button
                             className="small-button button danger"
-                            onClick={() => handleDeleteRecord(record.id)}
+                            onClick={() => void handleDeleteRecord(record.id)}
                           >
                             Deletar histórico
                           </button>

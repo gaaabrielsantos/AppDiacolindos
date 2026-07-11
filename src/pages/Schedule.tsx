@@ -3,6 +3,8 @@ import { useAppState } from '../hooks/useAppState';
 import { getWeekDay } from '../utils/date';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
+import { buildAssignmentsFromSelectedMembers, formatScheduleMembers, memberHasFunction } from '../utils/scheduleFunctions';
+import { getTeamFunctionLabel } from '../config/moduleFunctions';
 
 function getMonthMatrix(year: number, month: number) {
   const first = new Date(year, month, 1);
@@ -25,7 +27,7 @@ function formatBrDate(value: string) {
 
 export function SchedulePage() {
   const { isAdmin } = useAccessControl();
-  const { schedule, members, alerts, history, generateSchedule, defaultPeriod, updateScheduleMembers } = useAppState();
+  const { moduleId, schedule, members, eventRules, alerts, history, generateSchedule, defaultPeriod, updateScheduleMembers } = useAppState();
   const [startDate, setStartDate] = useState(defaultPeriod.startDate);
   const [endDate, setEndDate] = useState(defaultPeriod.endDate);
   const [rangeStart, setRangeStart] = useState(defaultPeriod.startDate);
@@ -45,7 +47,7 @@ export function SchedulePage() {
 
   useEffect(() => {
     if (schedule.length === 0) {
-      generateSchedule(defaultPeriod.startDate, defaultPeriod.endDate);
+      void generateSchedule(defaultPeriod.startDate, defaultPeriod.endDate);
     }
   }, [defaultPeriod.endDate, defaultPeriod.startDate, generateSchedule, schedule.length]);
 
@@ -64,21 +66,26 @@ export function SchedulePage() {
   const availableMembersByEvent = useMemo(() => {
     const map: Record<string, string[]> = {};
     schedule.forEach((item) => {
+      const sourceRule = eventRules.find((eventRule) => eventRule.id === item.eventRuleId);
+      const requiredFunctions = new Set((sourceRule?.roleRequirements ?? []).map((requirement) => requirement.functionKey));
       map[item.id] = members
         .filter((member) => {
           if (!member.active) return false;
           if (!member.unavailability || member.unavailability.length === 0) return true;
-          return !member.unavailability.some((u) => {
+          const isUnavailable = member.unavailability.some((u) => {
             if (u.type === 'evento' && u.eventId === item.eventRuleId) return true;
             if (u.type === 'data' && u.date === item.date) return true;
             if (u.type === 'periodo' && u.from && u.to) return item.date >= u.from && item.date <= u.to;
             return false;
           });
+          if (isUnavailable) return false;
+          if (requiredFunctions.size === 0) return true;
+          return Array.from(requiredFunctions).some((functionKey) => memberHasFunction(member, functionKey));
         })
         .map((member) => member.id);
     });
     return map;
-  }, [members, schedule]);
+  }, [eventRules, members, schedule]);
 
   const openPrev = () => setCursor((c) => {
     const d = new Date(c.year, c.month - 1, 1);
@@ -90,7 +97,7 @@ export function SchedulePage() {
     return { year: d.getFullYear(), month: d.getMonth() };
   });
 
-  const namesForEvent = (memberIds: string[]) => memberIds.map((id) => members.find((m) => m.id === id)?.nickname || members.find((m) => m.id === id)?.name || id);
+  const namesForEvent = (item: typeof schedule[number]) => formatScheduleMembers(item, members);
 
   const periodLabel = rangeStart && rangeEnd
     ? `${formatBrDate(rangeStart)} até ${formatBrDate(rangeEnd)}`
@@ -132,7 +139,7 @@ export function SchedulePage() {
   const isRangeEnd = (dateValue: string) => rangeEnd === dateValue;
   const isInRange = (dateValue: string) => Boolean(rangeStart && rangeEnd && dateValue > rangeStart && dateValue < rangeEnd);
 
-  const handleGenerateSchedule = () => {
+  const handleGenerateSchedule = async () => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
@@ -144,16 +151,22 @@ export function SchedulePage() {
 
     setStartDate(rangeStart);
     setEndDate(rangeEnd);
-    generateSchedule(rangeStart, rangeEnd);
+    await generateSchedule(rangeStart, rangeEnd);
   };
 
-  const applyManualUpdate = () => {
+  const applyManualUpdate = async () => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
     if (!editingEventId) return;
-    updateScheduleMembers(editingEventId, memberSelection, 'Alteração manual na tela de escala');
+    const scheduleItem = schedule.find((item) => item.id === editingEventId);
+    const eventRule = scheduleItem ? eventRules.find((item) => item.id === scheduleItem.eventRuleId) : null;
+    const nextAssignments = scheduleItem && eventRule
+      ? buildAssignmentsFromSelectedMembers(eventRule, memberSelection, members, scheduleItem.memberAssignments ?? [])
+      : undefined;
+    const wasUpdated = await updateScheduleMembers(editingEventId, memberSelection, 'Alteração manual na tela de escala', nextAssignments);
+    if (!wasUpdated) return;
     setEditingEventId(null);
     setMemberSelection([]);
   };
@@ -224,7 +237,7 @@ export function SchedulePage() {
               <div className="form-actions" style={{ justifyContent: 'center', marginTop: 12 }}>
                 <button
                   className="button"
-                  onClick={handleGenerateSchedule}
+                  onClick={() => void handleGenerateSchedule()}
                 >
                   Gerar Escala
                 </button>
@@ -282,7 +295,7 @@ export function SchedulePage() {
                       </div>
                       <div style={{ display: 'grid', gap: 8 }}>
                         {events.slice(0, 2).map((ev) => {
-                          const names = namesForEvent(ev.memberIds);
+                          const names = namesForEvent(ev);
                           const firstNames = names.slice(0, 2).join(', ');
                           const extra = names.length > 2 ? ` +${names.length - 2} integrantes` : '';
                           return (
@@ -333,9 +346,10 @@ export function SchedulePage() {
               <button style={{ float: 'right' }} onClick={() => setSelectedDate(null)}>Fechar</button>
               <h2 style={{ marginTop: 0 }}>Eventos em {selectedDate}</h2>
               {(eventsByDate[selectedDate] ?? []).length === 0 ? <p>Nenhum evento neste dia.</p> : (eventsByDate[selectedDate] ?? []).map((ev) => {
-                const names = namesForEvent(ev.memberIds);
+                const names = namesForEvent(ev);
                 const isEditing = editingEventId === ev.id;
                 const eventHistory = history.filter((h) => h.eventDate === ev.date && h.eventTime === ev.time && h.eventName === ev.eventName);
+                const eventRule = eventRules.find((item) => item.id === ev.eventRuleId);
                 return (
                   <div key={ev.id} style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -349,6 +363,12 @@ export function SchedulePage() {
                       </div>
                     </div>
 
+                    {eventRule?.roleRequirements && eventRule.roleRequirements.length > 0 ? (
+                      <div style={{ marginTop: 8, color: 'var(--muted)' }}>
+                        Funções necessárias: {eventRule.roleRequirements.map((item) => `${getTeamFunctionLabel(item.functionKey)}: ${item.quantity}`).join(', ')}
+                      </div>
+                    ) : null}
+
                     <div style={{ marginTop: 10 }}>
                       <strong>Integrantes:</strong> {names.length > 0 ? names.join(', ') : 'Sem integrantes definidos'}
                     </div>
@@ -359,7 +379,11 @@ export function SchedulePage() {
                         <div style={{ display: 'grid', gap: 6 }}>
                           {(availableMembersByEvent[ev.id] ?? []).map((memberId) => {
                             const checked = memberSelection.includes(memberId);
-                            const name = members.find((m) => m.id === memberId)?.nickname || members.find((m) => m.id === memberId)?.name || memberId;
+                            const member = members.find((m) => m.id === memberId);
+                            const name = member?.nickname || member?.name || memberId;
+                            const functionsLabel = member?.functions && member.functions.length > 0
+                              ? ` - ${member.functions.map(getTeamFunctionLabel).join(', ')}`
+                              : '';
                             return (
                               <label key={memberId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <input
@@ -375,7 +399,7 @@ export function SchedulePage() {
                                   disabled={!isAdmin}
                                   title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                                 />
-                                {name}
+                                {name}{functionsLabel}
                               </label>
                             );
                           })}
@@ -383,7 +407,7 @@ export function SchedulePage() {
                         <div className="form-actions" style={{ marginTop: 10 }}>
                           <button
                             className="small-button button"
-                            onClick={applyManualUpdate}
+                            onClick={() => void applyManualUpdate()}
                             disabled={!isAdmin}
                             title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                           >

@@ -1,5 +1,13 @@
 import { jsPDF } from 'jspdf';
+import { MODULE_LABELS } from '../config/modules';
 import { Member, ScheduleItem } from '../types';
+import { formatScheduleMembers } from './scheduleFunctions';
+
+export interface ConsolidatedSchedulePdfSection {
+  moduleId: keyof typeof MODULE_LABELS;
+  members: Member[];
+  schedule: ScheduleItem[];
+}
 
 function monthKey(date: string) {
   return date.slice(0, 7);
@@ -23,8 +31,8 @@ function getMonthDays(year: number, month: number) {
 function calculateDayRequiredHeight(
   doc: jsPDF,
   date: Date | null,
-  events: Array<{ time: string; eventName: string; memberIds: string[] }>,
-  memberNameById: Record<string, string>,
+  events: Array<{ time: string; eventName: string; memberIds: string[]; memberAssignments?: ScheduleItem['memberAssignments'] }>,
+  members: Member[],
   textWidth: number
 ) {
   if (!date) return 18;
@@ -36,7 +44,7 @@ function calculateDayRequiredHeight(
     const eventLines = doc.splitTextToSize(`${event.time} - ${event.eventName}`, textWidth) as string[];
 
     doc.setFontSize(7.2);
-    const names = event.memberIds.map((id) => memberNameById[id] || 'Integrante').join(', ');
+  const names = formatScheduleMembers(event, members).join(', ');
     const namesLines = doc.splitTextToSize(names || 'Sem integrantes definidos', textWidth) as string[];
 
     needed += eventLines.length * 3.3;
@@ -62,10 +70,6 @@ export function buildSchedulePdf(
   }, {} as Record<string, ScheduleItem[]>);
 
   const monthKeys = Object.keys(groupedByMonth).sort();
-  const memberNameById = members.reduce((acc, member) => {
-    acc[member.id] = member.nickname || member.name;
-    return acc;
-  }, {} as Record<string, string>);
 
   if (monthKeys.length === 0) {
     doc.setFontSize(16);
@@ -118,7 +122,7 @@ export function buildSchedulePdf(
         const requiredHeights = week.map((date) => {
           const isoDate = date ? date.toISOString().slice(0, 10) : '';
           const events = date ? (eventsByDate[isoDate] ?? []).sort((a, b) => a.time.localeCompare(b.time)) : [];
-          return calculateDayRequiredHeight(doc, date, events, memberNameById, cellWidth - (innerPaddingX * 2));
+          return calculateDayRequiredHeight(doc, date, events, members, cellWidth - (innerPaddingX * 2));
         });
         const rowHeight = Math.max(...requiredHeights, 24);
 
@@ -153,7 +157,7 @@ export function buildSchedulePdf(
           let yText = yCell + 7.3;
           events.forEach((event) => {
             const eventLine = `${event.time} - ${event.eventName}`;
-            const namesLine = event.memberIds.map((id) => memberNameById[id] || 'Integrante').join(', ') || 'Sem integrantes definidos';
+            const namesLine = formatScheduleMembers(event, members).join(', ') || 'Sem integrantes definidos';
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.5);
@@ -184,4 +188,92 @@ export function buildSchedulePdf(
   const pdfDataUrl = doc.output('datauristring');
 
   return { doc, fileName, pdfDataUrl };
+}
+
+export function buildConsolidatedSchedulePdf(
+  sections: ConsolidatedSchedulePdfSection[],
+  periodLabel: string
+) {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const marginX = 14;
+  const maxY = 286;
+  let currentY = 18;
+
+  const ensureSpace = (requiredHeight: number) => {
+    if (currentY + requiredHeight <= maxY) return;
+    doc.addPage();
+    currentY = 18;
+  };
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('Diacolindos', marginX, currentY);
+  currentY += 8;
+  doc.setFontSize(14);
+  doc.text('Relatório geral consolidado', marginX, currentY);
+  currentY += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Período: ${periodLabel}`, marginX, currentY);
+  currentY += 10;
+
+  if (sections.every((section) => section.schedule.length === 0)) {
+    doc.text('Nenhuma escala encontrada no período selecionado.', marginX, currentY);
+  }
+
+  sections.forEach((section) => {
+    ensureSpace(18);
+    doc.setDrawColor(217, 229, 221);
+    doc.line(marginX, currentY, 196, currentY);
+    currentY += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text(MODULE_LABELS[section.moduleId], marginX, currentY);
+    currentY += 6;
+
+    if (section.schedule.length === 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Nenhum evento no período selecionado.', marginX, currentY);
+      currentY += 8;
+      return;
+    }
+
+    section.schedule.forEach((item) => {
+      const namesLine = formatScheduleMembers(item, section.members).join(', ') || 'Sem integrantes definidos';
+      const headerLines = doc.splitTextToSize(`${item.date} - ${item.time} - ${item.eventName}`, 182) as string[];
+      const namesLines = doc.splitTextToSize(namesLine, 178) as string[];
+      const statusLabel = item.memberIds.length < item.requiredMembers
+        ? `Incompleta (${item.memberIds.length}/${item.requiredMembers})`
+        : `Completa (${item.memberIds.length}/${item.requiredMembers})`;
+      const statusLines = doc.splitTextToSize(`Status: ${statusLabel}`, 178) as string[];
+      const blockHeight = 6 + (headerLines.length * 4.2) + (namesLines.length * 3.8) + (statusLines.length * 3.8);
+
+      ensureSpace(blockHeight);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      headerLines.forEach((line) => {
+        doc.text(line, marginX, currentY);
+        currentY += 4.2;
+      });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      namesLines.forEach((line) => {
+        doc.text(line, marginX + 2, currentY);
+        currentY += 3.8;
+      });
+      statusLines.forEach((line) => {
+        doc.text(line, marginX + 2, currentY);
+        currentY += 3.8;
+      });
+      currentY += 3;
+    });
+  });
+
+  const isoDate = new Date().toISOString().slice(0, 10);
+  return {
+    doc,
+    fileName: `relatorio-geral-diacolindos-${isoDate}.pdf`,
+    pdfDataUrl: doc.output('datauristring'),
+  };
 }

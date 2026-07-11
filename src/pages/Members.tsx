@@ -1,5 +1,6 @@
 import { Dispatch, SetStateAction, useState } from 'react';
 import { Member, Unavailability } from '../types';
+import { getModuleFunctionConfig, getTeamFunctionLabel } from '../config/moduleFunctions';
 import { useAppState } from '../hooks/useAppState';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
@@ -9,6 +10,7 @@ const emptyMemberForm = (): Partial<Member> => ({
   nickname: '',
   phone: '',
   active: true,
+  functions: [],
   unavailability: [],
   notes: '',
 });
@@ -181,9 +183,63 @@ function MemberRestrictionsFields({
   );
 }
 
+function MemberFunctionsFields({
+  moduleId,
+  form,
+  setForm,
+  isAdmin,
+}: {
+  moduleId: ReturnType<typeof useAppState>['moduleId'];
+  form: Partial<Member>;
+  setForm: Dispatch<SetStateAction<Partial<Member>>>;
+  isAdmin: boolean;
+}) {
+  const functionConfig = getModuleFunctionConfig(moduleId);
+  if (!functionConfig) return null;
+
+  const selectedFunctions = form.functions ?? [];
+
+  return (
+    <div className="full-width" style={{ display: 'grid', gap: 8 }}>
+      <small style={{ fontWeight: 700 }}>{functionConfig.memberFieldLabel}</small>
+      <div className="event-options-grid">
+        {functionConfig.options.map((option) => {
+          const checked = selectedFunctions.includes(option.key);
+          return (
+            <label key={option.key} className="event-option-item">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => {
+                  setForm((prev) => {
+                    const current = new Set(prev.functions ?? []);
+                    if (current.has(option.key)) {
+                      current.delete(option.key);
+                    } else {
+                      current.add(option.key);
+                    }
+
+                    return {
+                      ...prev,
+                      functions: Array.from(current),
+                    };
+                  });
+                }}
+                disabled={!isAdmin}
+                title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
+              />
+              <span>{option.label}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function MembersPage() {
   const { isAdmin } = useAccessControl();
-  const { members, setMembers, eventRules, schedule } = useAppState();
+  const { moduleId, members, createMember, saveMember, toggleMemberActive, deleteMember, eventRules, schedule } = useAppState();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createDateSectionOpen, setCreateDateSectionOpen] = useState(false);
   const [createPeriodSectionOpen, setCreatePeriodSectionOpen] = useState(false);
@@ -222,7 +278,7 @@ export function MembersPage() {
     setEditingId(null);
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
@@ -235,11 +291,13 @@ export function MembersPage() {
       nickname: createForm.nickname?.trim() || undefined,
       phone: createForm.phone?.trim() || undefined,
       active: createForm.active ?? true,
+      functions: createForm.functions ?? [],
       unavailability: createForm.unavailability ?? [],
       notes: createForm.notes?.trim() || undefined,
     };
 
-    setMembers((current) => [...current, payload]);
+    const wasCreated = await createMember(payload);
+    if (!wasCreated) return;
     resetCreateForm(true);
   };
 
@@ -262,7 +320,7 @@ export function MembersPage() {
     setEditPeriodRestriction({ from: '', to: '', note: '' });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
@@ -275,23 +333,25 @@ export function MembersPage() {
       nickname: editForm.nickname?.trim() || undefined,
       phone: editForm.phone?.trim() || undefined,
       active: editForm.active ?? true,
+      functions: editForm.functions ?? [],
       unavailability: editForm.unavailability ?? [],
       notes: editForm.notes?.trim() || undefined,
     };
 
-    setMembers((current) => current.map((member) => (member.id === editingId ? payload : member)));
+    const wasSaved = await saveMember(payload);
+    if (!wasSaved) return;
     resetEditForm();
   };
 
-  const toggleActive = (id: string) => {
+  const handleToggleActive = async (id: string) => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
-    setMembers((current) => current.map((member) => (member.id === id ? { ...member, active: !member.active } : member)));
+    await toggleMemberActive(id);
   };
 
-  const deleteMember = (memberId: string) => {
+  const handleDeleteMember = async (memberId: string) => {
     if (!isAdmin) {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
@@ -302,7 +362,7 @@ export function MembersPage() {
       return;
     }
     if (!confirm('Tem certeza que deseja deletar este integrante? Essa ação não poderá ser desfeita.')) return;
-    setMembers((current) => current.filter((member) => member.id !== memberId));
+    await deleteMember(memberId);
   };
 
   return (
@@ -339,6 +399,10 @@ export function MembersPage() {
                           <strong>{member.active ? 'Ativo' : 'Inativo'}</strong>
                         </p>
                         <p>
+                          <span className="member-meta-label">Funções</span>
+                          <strong>{member.functions && member.functions.length > 0 ? member.functions.map(getTeamFunctionLabel).join(', ') : '-'}</strong>
+                        </p>
+                        <p>
                           <span className="member-meta-label">Indisponibilidades</span>
                           <strong>{member.unavailability.length === 0 ? 'Sem restrição' : member.unavailability.length}</strong>
                         </p>
@@ -356,14 +420,14 @@ export function MembersPage() {
                           <button
                             type="button"
                             className="small-button button"
-                            onClick={() => toggleActive(member.id)}
+                            onClick={() => void handleToggleActive(member.id)}
                           >
                             {member.active ? 'Desativar' : 'Ativar'}
                           </button>
                           <button
                             type="button"
                             className="small-button button danger"
-                            onClick={() => deleteMember(member.id)}
+                            onClick={() => void handleDeleteMember(member.id)}
                           >
                             Deletar
                           </button>
@@ -402,6 +466,13 @@ export function MembersPage() {
                                 title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                               />
                             </label>
+
+                            <MemberFunctionsFields
+                              moduleId={moduleId}
+                              form={editForm}
+                              setForm={setEditForm}
+                              isAdmin={isAdmin}
+                            />
 
                             <div className="full-width restriction-toggle-group">
                               <button
@@ -479,7 +550,7 @@ export function MembersPage() {
                                 <button
                                   type="button"
                                   className="button"
-                                  onClick={handleSaveEdit}
+                                  onClick={() => void handleSaveEdit()}
                                 >
                                   Salvar alterações
                                 </button>
@@ -542,6 +613,13 @@ export function MembersPage() {
                       title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                     />
                   </label>
+
+                  <MemberFunctionsFields
+                    moduleId={moduleId}
+                    form={createForm}
+                    setForm={setCreateForm}
+                    isAdmin={isAdmin}
+                  />
 
                   <div className="full-width restriction-toggle-group">
                     <button
@@ -619,7 +697,7 @@ export function MembersPage() {
                       <button
                         type="button"
                         className="button"
-                        onClick={handleCreate}
+                        onClick={() => void handleCreate()}
                       >
                         Salvar integrante
                       </button>

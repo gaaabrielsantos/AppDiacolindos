@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './layout.css';
+import { buildModulePath, type ModuleRouteSegment } from '../config/modules';
 import { useAccessControl } from '../hooks/useAccessControl';
+import { useModule } from '../hooks/useModule';
 
-const menuItems = [
-  { label: 'Dashboard', path: '/' },
-  { label: 'Integrantes', path: '/integrantes' },
-  { label: 'Eventos', path: '/eventos' },
-  { label: 'Escala', path: '/escala' },
-  { label: 'Histórico', path: '/historico' },
+const menuItems: Array<{ label: string; path: ModuleRouteSegment }> = [
+  { label: 'Dashboard', path: 'dashboard' },
+  { label: 'Integrantes', path: 'integrantes' },
+  { label: 'Eventos', path: 'eventos' },
+  { label: 'Escala', path: 'escala' },
+  { label: 'Histórico', path: 'historico' },
 ];
 
 export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenLogin: () => void }) {
   const location = useLocation();
   const { accessMode, isAdmin, logout } = useAccessControl();
+  const { moduleId } = useModule();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 1024px)').matches);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -133,7 +136,11 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
         ) : null}
         <nav>
           {menuItems.map((item) => (
-            <Link key={item.path} to={item.path} className={location.pathname === item.path ? 'active' : ''}>
+            <Link
+              key={item.path}
+              to={buildModulePath(moduleId, item.path)}
+              className={location.pathname === buildModulePath(moduleId, item.path) ? 'active' : ''}
+            >
               {item.label}
             </Link>
           ))}
