@@ -76,17 +76,15 @@ button.sidebar-access-item:hover {
   min-height: 46px;
   height: auto;
   padding: 8px 10px;
+  border: none !important;
   border-radius: 12px;
   white-space: nowrap;
+  background: transparent !important;
+  border-color: transparent;
 }
 
-.sidebar-theme-label {
-  font-weight: 600;
-  font-size: 0.86rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.sidebar-theme-toggle:hover {
+  background: rgba(0, 0, 0, 0.15) !important;
 }
 
 .sidebar-theme-toggle .theme-switch {
@@ -97,6 +95,16 @@ button.sidebar-access-item:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.brand-logo {
+  display: block;
+  width: 120px !important;
+  max-width: none;
+  max-height: none;
+  height: auto;
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 
 .brand {
@@ -268,8 +276,8 @@ button.sidebar-access-item:hover {
   width: 66px;
   height: 32px;
   border-radius: 999px;
-  background: var(--toggle-track);
-  border: 1px solid var(--border);
+  background: #1f2933;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   display: inline-flex;
   align-items: center;
   padding: 2px;
@@ -280,7 +288,8 @@ button.sidebar-access-item:hover {
   width: 26px;
   height: 26px;
   border-radius: 999px;
-  background: var(--surface);
+  background: #f8fafc;
+  color: #0f1720;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -290,8 +299,25 @@ button.sidebar-access-item:hover {
   transition: transform 0.28s var(--ease-mac);
 }
 
+[data-theme="dark"] .theme-switch {
+  background: #0f1720;
+}
+
+[data-theme="dark"] .theme-switch-thumb {
+  background: #e2e8f0;
+  color: #0f1720;
+}
+
 .theme-switch.dark .theme-switch-thumb {
   transform: translateX(34px);
+}
+
+.login-logo {
+  display: block;
+  margin: 0 auto 4px;
+  width: auto;
+  max-height: 20px;
+  object-fit: contain;
 }
 
 .theme-toggle:hover .theme-switch {

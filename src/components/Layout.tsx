@@ -4,6 +4,7 @@ import './layout.css';
 import { buildModulePath, type ModuleRouteSegment } from '../config/modules';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { useModule } from '../hooks/useModule';
+import logoCompletoBranco from '../assets/logo-completo-branco.png';
 
 const menuItems: Array<{ label: string; path: ModuleRouteSegment }> = [
   { label: 'Dashboard', path: 'dashboard' },
@@ -121,13 +122,10 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
         onClick={handleSidebarClick}
       >
         <div className="brand">
-          {sidebarOpen ? <strong>IPB Mairinque</strong> : null}
+          {sidebarOpen ? <img src={logoCompletoBranco} alt="IPB Mairinque" className="brand-logo" style={{ width: 120, height: 'auto', display: 'block' }} /> : null}
         </div>
         {sidebarOpen ? (
           <div className="sidebar-access-group">
-            <span className="sidebar-access-item" aria-live="polite">
-              {accessMode === 'admin' ? 'Modo administrador' : accessMode === 'principal' ? 'Modo principal' : 'Modo visualização'}
-            </span>
             {accessMode !== 'viewer' ? (
               <>
                 <button type="button" className="sidebar-access-item button secondary small-button" onClick={() => void logout()}>
@@ -158,6 +156,7 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
         {sidebarOpen ? (
           <div className="sidebar-footer">
             <button
+              type="button"
               className="small-button button secondary sidebar-theme-toggle"
               onClick={toggleTheme}
               title={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
@@ -166,7 +165,6 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
               <span className={`theme-switch ${theme === 'dark' ? 'dark' : ''}`} aria-hidden>
                 <span className="theme-switch-thumb">{theme === 'light' ? '🌙' : '☀️'}</span>
               </span>
-              <span className="sidebar-theme-label">{theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}</span>
             </button>
           </div>
         ) : null}
@@ -176,6 +174,7 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
         <header className="content-header">
           {isMobile ? (
             <button
+              type="button"
               className="small-button button secondary mobile-menu-toggle"
               onClick={toggleSidebar}
               title={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}

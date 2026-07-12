@@ -965,11 +965,17 @@ input[type="checkbox"] {
   gap: 18px;
 }
 
+.principal-dashboard-header-card {
+  text-align: center;
+}
+
 .principal-header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
 }
 
 .principal-tabs {
@@ -1011,6 +1017,16 @@ input[type="checkbox"] {
 .principal-theme-toggle .theme-switch {
   width: 66px;
   height: 32px;
+}
+
+.principal-filter-group {
+  max-width: 720px;
+  margin: 0 auto;
+  justify-content: center;
+}
+
+.principal-filter-group label {
+  text-align: left;
 }
 
 .principal-section-card {
@@ -1076,6 +1092,14 @@ input[type="checkbox"] {
 
 .modal-close-button {
   float: right;
+}
+
+.login-logo {
+  display: block;
+  margin: 0 auto 4px;
+  width: auto;
+  max-height: 20px;
+  object-fit: contain;
 }
 
 @keyframes modalFadeIn {
@@ -1287,7 +1311,7 @@ input[type="checkbox"] {
 @media (max-width: 720px) {
   .principal-header-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
   }
 
   .principal-tabs {

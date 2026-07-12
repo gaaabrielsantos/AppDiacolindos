@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="420" height="170" viewBox="0 0 420 170" fill="none">
-  <rect width="420" height="170" rx="16" fill="transparent"/>
-  <g fill="#ffffff">
-    <path d="M210 22c-16 0-30 10-36 24-6 16-2 30 6 42 7 10 11 20 13 29h34c2-9 6-19 13-29 8-12 12-26 6-42-6-14-20-24-36-24z" opacity="0.9"/>
-    <rect x="116" y="122" width="188" height="6" rx="3" fill="#ffffff"/>
-    <text x="210" y="148" text-anchor="middle" font-family="Avenir, 'Avenir Next', Arial, sans-serif" font-size="20" font-weight="700">IGREJA PRESBITERIANA DO BRASIL</text>
-    <text x="210" y="166" text-anchor="middle" font-family="Avenir, 'Avenir Next', Arial, sans-serif" font-size="12" font-weight="600">EM MAIRINQUE</text>
-  </g>
-</svg>

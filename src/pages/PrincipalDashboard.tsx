@@ -6,8 +6,8 @@ import { PrincipalModuleSchedule, usePrincipalDashboard } from '../hooks/usePrin
 import { formatDate } from '../utils/date';
 import { buildConsolidatedSchedulePdf } from '../utils/schedulePdf';
 import { ScheduleAssignment } from '../utils/scheduleFunctions';
-
-type FilterMode = 'day' | 'week' | 'month' | 'custom';
+import logoCompletoBranco from '../assets/logo-completo-branco.png';
+import logoCompleto from '../assets/logo-completo.png';
 
 type ConsolidatedMember = {
   id: string;
@@ -41,33 +41,6 @@ function formatBrDate(value: string) {
   return `${day}/${month}/${year}`;
 }
 
-function formatMonthLabel(value: string) {
-  const [year, month] = value.split('-').map(Number);
-  return new Date(year, month - 1, 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
-}
-
-function getWeekRange(anchor: string) {
-  const base = new Date(`${anchor}T12:00:00`);
-  const start = new Date(base);
-  start.setDate(base.getDate() - base.getDay());
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  return {
-    startDate: formatDate(start),
-    endDate: formatDate(end),
-  };
-}
-
-function getMonthRange(monthValue: string) {
-  const [year, month] = monthValue.split('-').map(Number);
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0);
-  return {
-    startDate: formatDate(start),
-    endDate: formatDate(end),
-  };
-}
-
 function normalizeRange(startDate: string, endDate: string) {
   if (!startDate || !endDate || startDate <= endDate) {
     return { startDate, endDate };
@@ -91,16 +64,14 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
   const { modulesData, isLoading, errorMessage, defaultPeriod, refreshData } = usePrincipalDashboard();
   const today = useMemo(() => formatDate(new Date()), []);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
-  const [filterMode, setFilterMode] = useState<FilterMode>('month');
-  const [selectedDay, setSelectedDay] = useState(today);
-  const [selectedWeekAnchor, setSelectedWeekAnchor] = useState(today);
-  const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7));
   const [customStartDate, setCustomStartDate] = useState(defaultPeriod.startDate);
   const [customEndDate, setCustomEndDate] = useState(defaultPeriod.endDate);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('diacolindos-theme');
     return saved === 'dark' ? 'dark' : 'light';
   });
+
+  const logoSrc = theme === 'dark' ? logoCompletoBranco : logoCompleto;
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -109,30 +80,6 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
   }, [theme]);
 
   const selectedPeriod = useMemo(() => {
-    if (filterMode === 'day') {
-      return {
-        startDate: selectedDay,
-        endDate: selectedDay,
-        label: `Dia ${formatBrDate(selectedDay)}`,
-      };
-    }
-
-    if (filterMode === 'week') {
-      const range = getWeekRange(selectedWeekAnchor);
-      return {
-        ...range,
-        label: `Semana de ${formatBrDate(range.startDate)} a ${formatBrDate(range.endDate)}`,
-      };
-    }
-
-    if (filterMode === 'month') {
-      const range = getMonthRange(selectedMonth);
-      return {
-        ...range,
-        label: formatMonthLabel(selectedMonth),
-      };
-    }
-
     const normalizedCustomRange = normalizeRange(customStartDate, customEndDate);
 
     return {
@@ -140,7 +87,7 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
       endDate: normalizedCustomRange.endDate,
       label: `${formatBrDate(normalizedCustomRange.startDate)} a ${formatBrDate(normalizedCustomRange.endDate)}`,
     };
-  }, [customEndDate, customStartDate, filterMode, selectedDay, selectedMonth, selectedWeekAnchor]);
+  }, [customEndDate, customStartDate]);
 
   const filteredModules = useMemo(
     () => modulesData.map((moduleData) => filterModuleSchedule(moduleData, selectedPeriod.startDate, selectedPeriod.endDate)),
@@ -279,101 +226,47 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
     <div className="container">
       <main className="page-content">
         <section className="page-section">
-          <div className="card" style={{ display: 'grid', gap: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div>
-                <h1 className="page-title" style={{ marginTop: 0, textAlign: 'left' }}>Dashboard Principal</h1>
-                <p className="muted-text" style={{ marginBottom: 0 }}>
-                  Consolidação somente leitura das escalas da IPB Mairinque por Diaconia, Recepção, Mídias, Louvor, Cozinha e EBD.
-                </p>
-              </div>
-              <div className="principal-header-actions">
-                <div className="principal-tabs" role="tablist" aria-label="Ações do dashboard principal">
-                  <button
-                    type="button"
-                    className="principal-tab"
-                    role="tab"
-                    aria-selected="false"
-                    onClick={() => {
-                      if (isAuthenticated) {
-                        void logout();
-                        return;
-                      }
-                      onOpenLogin();
-                    }}
-                  >
-                    Administrador principal
-                  </button>
-                  <button type="button" className="principal-tab" role="tab" aria-selected="false" onClick={() => void refreshData()} disabled={isLoading}>
-                    {isLoading ? 'Atualizando...' : 'Atualizar dados'}
-                  </button>
-                  <button type="button" className="principal-tab" role="tab" aria-selected="false" onClick={handleExportReport} disabled={isLoading}>
-                    Gerar relatório geral
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="small-button button secondary principal-theme-toggle"
-                  onClick={toggleTheme}
-                  title={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
-                  aria-label={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
-                >
-                  <span className={`theme-switch ${theme === 'dark' ? 'dark' : ''}`} aria-hidden>
-                    <span className="theme-switch-thumb">{theme === 'light' ? '🌙' : '☀️'}</span>
-                  </span>
-                </button>
-              </div>
+          <div className="card principal-dashboard-header-card" style={{ display: 'grid', gap: 16, textAlign: 'center' }}>
+            <div style={{ display: 'grid', gap: 10, justifyItems: 'center' }}>
+              <img src={logoSrc} alt="IPB Mairinque" style={{ width: 250, height: 'auto', display: 'block' }} />
+              <p className="muted-text" style={{ marginBottom: 0, maxWidth: 760 }}>
+                Consolidação somente leitura das escalas da IPB Mairinque por Diaconia, Recepção, Mídias, Louvor, Cozinha e EBD.
+              </p>
+            </div>
+            <div className="principal-header-actions">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => {
+                  if (isAuthenticated) {
+                    void logout();
+                    return;
+                  }
+                  onOpenLogin();
+                }}
+              >
+                Administrador principal
+              </button>
+              <button type="button" className="button secondary" onClick={() => void refreshData()} disabled={isLoading}>
+                {isLoading ? 'Atualizando...' : 'Atualizar dados'}
+              </button>
+              <button type="button" className="button" onClick={handleExportReport} disabled={isLoading}>
+                Gerar relatório geral
+              </button>
+              <button
+                type="button"
+                className="small-button button secondary principal-theme-toggle"
+                onClick={toggleTheme}
+                title={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
+                aria-label={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
+              >
+                <span className={`theme-switch ${theme === 'dark' ? 'dark' : ''}`} aria-hidden>
+                  <span className="theme-switch-thumb">{theme === 'light' ? '🌙' : '☀️'}</span>
+                </span>
+              </button>
             </div>
 
-            <div className="input-group form-grid">
-              <label>
-                Tipo de filtro
-                <select value={filterMode} onChange={(event) => setFilterMode(event.target.value as FilterMode)}>
-                  <option value="day">Dia específico</option>
-                  <option value="week">Semana</option>
-                  <option value="month">Mês</option>
-                  <option value="custom">Intervalo customizado</option>
-                </select>
-              </label>
-
-              {filterMode === 'day' ? (
-                <label>
-                  Dia
-                  <input type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)} />
-                </label>
-              ) : null}
-
-              {filterMode === 'week' ? (
-                <label>
-                  Data de referência da semana
-                  <input type="date" value={selectedWeekAnchor} onChange={(event) => setSelectedWeekAnchor(event.target.value)} />
-                </label>
-              ) : null}
-
-              {filterMode === 'month' ? (
-                <label>
-                  Mês
-                  <input type="month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} />
-                </label>
-              ) : null}
-
-              {filterMode === 'custom' ? (
-                <>
-                  <label>
-                    Data inicial
-                    <input type="date" value={customStartDate} onChange={(event) => setCustomStartDate(event.target.value)} />
-                  </label>
-                  <label>
-                    Data final
-                    <input type="date" value={customEndDate} onChange={(event) => setCustomEndDate(event.target.value)} />
-                  </label>
-                </>
-              ) : null}
-            </div>
-
-            <p style={{ margin: 0 }}>
-              <strong>Período selecionado:</strong> {selectedPeriod.label}
-            </p>
+            <div className="principal-filter-group" style={{ maxWidth: 720, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14, justifyContent: 'center' }} />
           </div>
         </section>
 
@@ -383,45 +276,39 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
           </section>
         ) : null}
 
-        <section className="page-section">
-          <div className="card">
-            <h2 style={{ marginTop: 0 }}>Pessoas escaladas por equipe</h2>
-            <p className="muted-text">Comparação visual do total de integrantes escalados por módulo no período selecionado.</p>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, flexWrap: 'wrap' }}>
-              {moduleChartData.map((item) => {
-                const height = `${(item.value / maxModuleChartValue) * 180}px`;
-                return (
-                  <div key={item.id} style={{ flex: '1 1 96px', minWidth: 96, textAlign: 'center', maxWidth: 160 }}>
-                    <div style={{ fontSize: 12, marginBottom: 6 }}>{item.value}</div>
-                    <div
-                      title={`${item.label}: ${item.value}`}
-                      style={{
-                        height,
-                        minHeight: 4,
-                        borderRadius: '8px 8px 0 0',
-                        background: 'var(--primary)',
-                      }}
-                    />
-                    <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.label}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="muted-text" style={{ marginTop: 12, marginBottom: 0 }}>
-              Pessoas escaladas: <strong>{summary.totalPeople}</strong> | Atribuições: <strong>{summary.totalAssignments}</strong> | Seções completas: <strong>{summary.completeTeams}</strong> | Seções incompletas: <strong>{summary.incompleteTeams}</strong> | Seções sem escala: <strong>{summary.teamsWithoutEvents}</strong>
-            </p>
-            <p className="muted-text" style={{ marginTop: 8 }}>
-              Período em análise: <strong>{selectedPeriod.label}</strong>. {hasAnySchedule ? 'A visualização está consolidada por seção, data, horário, evento e integrantes.' : 'Nenhuma escala consolidada disponível para o filtro atual.'}
-            </p>
-          </div>
-        </section>
-
         {false ? (
           <section className="page-section">
             <div className="card">
-              <h2 style={{ marginTop: 0 }}>Próximos eventos</h2>
+              <h2 style={{ marginTop: 0 }}>Pessoas escaladas por equipe</h2>
+              <p className="muted-text">Comparação visual do total de integrantes escalados por módulo no período selecionado.</p>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, flexWrap: 'wrap' }}>
+                {moduleChartData.map((item) => {
+                  const height = `${(item.value / maxModuleChartValue) * 180}px`;
+                  return (
+                    <div key={item.id} style={{ flex: '1 1 96px', minWidth: 96, textAlign: 'center', maxWidth: 160 }}>
+                      <div style={{ fontSize: 12, marginBottom: 6 }}>{item.value}</div>
+                      <div
+                        title={`${item.label}: ${item.value}`}
+                        style={{
+                          height,
+                          minHeight: 4,
+                          borderRadius: '8px 8px 0 0',
+                          background: 'var(--primary)',
+                        }}
+                      />
+                      <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.label}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="muted-text" style={{ marginTop: 12, marginBottom: 0 }}>
+                Pessoas escaladas: <strong>{summary.totalPeople}</strong> | Atribuições: <strong>{summary.totalAssignments}</strong> | Seções completas: <strong>{summary.completeTeams}</strong> | Seções incompletas: <strong>{summary.incompleteTeams}</strong> | Seções sem escala: <strong>{summary.teamsWithoutEvents}</strong>
+              </p>
+              <p className="muted-text" style={{ marginTop: 8 }}>
+                Período em análise: <strong>{selectedPeriod.label}</strong>. {hasAnySchedule ? 'A visualização está consolidada por seção, data, horário, evento e integrantes.' : 'Nenhuma escala consolidada disponível para o filtro atual.'}
+              </p>
             </div>
           </section>
         ) : null}

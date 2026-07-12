@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAccessControl } from '../hooks/useAccessControl';
+import logoCompletoBranco from '../assets/logo-completo-branco.png';
 
 export function AccessGate({
   loginOpen,
@@ -53,8 +54,8 @@ export function AccessGate({
       onClick={handleContinueViewing}
     >
       <div className="login-card" onClick={(event) => event.stopPropagation()}>
+        <img src={logoCompletoBranco} alt="IPB Mairinque" className="login-logo" />
         <button type="button" className="login-close-button button secondary small-button" aria-label="Fechar login" onClick={handleContinueViewing}>✕</button>
-        <h1>IPB MAIRINQUE</h1>
         <p>Acesse como administrador para liberar edição completa do sistema.</p>
 
         <div className="input-group login-form-grid">
@@ -83,7 +84,7 @@ export function AccessGate({
           </label>
         </div>
 
-  {isInitializing ? <p className="muted-text">Carregando acesso...</p> : null}
+        {isInitializing ? <p className="muted-text">Carregando acesso...</p> : null}
         {error ? <p className="login-error">{error}</p> : null}
 
         <div className="login-actions">
