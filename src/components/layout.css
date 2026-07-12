@@ -312,14 +312,6 @@ button.sidebar-access-item:hover {
   transform: translateX(34px);
 }
 
-.login-logo {
-  display: block;
-  margin: 0 auto 4px;
-  width: auto;
-  max-height: 20px;
-  object-fit: contain;
-}
-
 .theme-toggle:hover .theme-switch {
   background: var(--toggle-track-strong);
 }

@@ -54,9 +54,11 @@ export function AccessGate({
       onClick={handleContinueViewing}
     >
       <div className="login-card" onClick={(event) => event.stopPropagation()}>
-        <img src={logoCompletoBranco} alt="IPB Mairinque" className="login-logo" />
+        <img src={logoCompletoBranco} alt="IPB Mairinque" className="access-gate-logo" />
         <button type="button" className="login-close-button button secondary small-button" aria-label="Fechar login" onClick={handleContinueViewing}>✕</button>
-        <p>Acesse como administrador para liberar edição completa do sistema.</p>
+        <p>
+          Para acessar o projeto IPB Mairinque, faça login com seu usuário e senha. Caso não possua acesso, você pode continuar apenas visualizando as informações.
+        </p>
 
         <div className="input-group login-form-grid">
           <label>
