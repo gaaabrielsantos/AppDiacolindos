@@ -305,7 +305,7 @@ export function SchedulePage() {
                                 {isAdmin ? (
                                   <button
                                     type="button"
-                                    className="edit-icon-button"
+                                    className="edit-icon-button button secondary small-button"
                                     title="Editar escala"
                                     aria-label="Editar escala"
                                     onClick={(event) => {
@@ -343,7 +343,7 @@ export function SchedulePage() {
         >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="card">
-              <button style={{ float: 'right' }} onClick={() => setSelectedDate(null)}>Fechar</button>
+              <button type="button" className="small-button button secondary modal-close-button" onClick={() => setSelectedDate(null)}>Fechar</button>
               <h2 style={{ marginTop: 0 }}>Eventos em {selectedDate}</h2>
               {(eventsByDate[selectedDate] ?? []).length === 0 ? <p>Nenhum evento neste dia.</p> : (eventsByDate[selectedDate] ?? []).map((ev) => {
                 const names = namesForEvent(ev);

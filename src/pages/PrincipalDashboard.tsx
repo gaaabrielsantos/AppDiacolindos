@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertBanner } from '../components/AlertBanner';
-import { SummaryCard } from '../components/SummaryCard';
 import { getTeamFunctionLabel } from '../config/moduleFunctions';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { PrincipalModuleSchedule, usePrincipalDashboard } from '../hooks/usePrincipalDashboard';
@@ -98,6 +97,16 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
   const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7));
   const [customStartDate, setCustomStartDate] = useState(defaultPeriod.startDate);
   const [customEndDate, setCustomEndDate] = useState(defaultPeriod.endDate);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('diacolindos-theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('diacolindos-theme', theme);
+  }, [theme]);
 
   const selectedPeriod = useMemo(() => {
     if (filterMode === 'day') {
@@ -228,19 +237,20 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
     };
   }, [allEntries, consolidatedSections, today]);
 
-  const nextEvents = useMemo(
-    () => allEntries
-      .filter((entry) => entry.date >= today)
-      .sort((left, right) => {
-        const dateDiff = left.date.localeCompare(right.date);
-        if (dateDiff !== 0) return dateDiff;
-        return left.time.localeCompare(right.time);
-      })
-      .slice(0, 5),
-    [allEntries, today]
+  const hasAnySchedule = allEntries.length > 0;
+
+  const moduleChartData = useMemo(
+    () => consolidatedSections
+      .map((section) => ({
+        id: section.moduleId,
+        label: section.moduleLabel,
+        value: section.entries.reduce((sum, entry) => sum + entry.assignedCount, 0),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })),
+    [consolidatedSections]
   );
 
-  const hasAnySchedule = allEntries.length > 0;
+  const maxModuleChartValue = Math.max(...moduleChartData.map((item) => item.value), 1);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((current) => ({
@@ -261,6 +271,10 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
     doc.save(fileName);
   };
 
+  const toggleTheme = () => {
+    setTheme((current) => (current === 'light' ? 'dark' : 'light'));
+  };
+
   return (
     <div className="container">
       <main className="page-content">
@@ -273,29 +287,41 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
                   Consolidação somente leitura das escalas da IPB Mairinque por Diaconia, Recepção, Mídias, Louvor, Cozinha e EBD.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                {accessMode === 'viewer' ? (
+              <div className="principal-header-actions">
+                <div className="principal-tabs" role="tablist" aria-label="Ações do dashboard principal">
                   <button
                     type="button"
-                    className="principal-admin-button"
-                    onClick={onOpenLogin}
-                    title="Administrador principal"
-                    aria-label="Administrador principal"
+                    className="principal-tab"
+                    role="tab"
+                    aria-selected="false"
+                    onClick={() => {
+                      if (isAuthenticated) {
+                        void logout();
+                        return;
+                      }
+                      onOpenLogin();
+                    }}
                   >
                     Administrador principal
                   </button>
-                ) : null}
-                <button type="button" className="button secondary" onClick={() => void refreshData()} disabled={isLoading}>
-                  {isLoading ? 'Atualizando...' : 'Atualizar dados'}
-                </button>
-                <button type="button" className="button" onClick={handleExportReport} disabled={isLoading}>
-                  Gerar relatório geral
-                </button>
-                {isAuthenticated ? (
-                  <button type="button" className="button secondary" onClick={() => void logout()}>
-                    {accessMode === 'principal' ? 'Sair' : 'Encerrar acesso'}
+                  <button type="button" className="principal-tab" role="tab" aria-selected="false" onClick={() => void refreshData()} disabled={isLoading}>
+                    {isLoading ? 'Atualizando...' : 'Atualizar dados'}
                   </button>
-                ) : null}
+                  <button type="button" className="principal-tab" role="tab" aria-selected="false" onClick={handleExportReport} disabled={isLoading}>
+                    Gerar relatório geral
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="small-button button secondary principal-theme-toggle"
+                  onClick={toggleTheme}
+                  title={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
+                  aria-label={theme === 'light' ? 'Ativar modo noturno' : 'Ativar modo claro'}
+                >
+                  <span className={`theme-switch ${theme === 'dark' ? 'dark' : ''}`} aria-hidden>
+                    <span className="theme-switch-thumb">{theme === 'light' ? '🌙' : '☀️'}</span>
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -358,67 +384,47 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
         ) : null}
 
         <section className="page-section">
-          <div className="grid-3">
-            <SummaryCard
-              title="Pessoas escaladas"
-              value={String(summary.totalPeople)}
-              description={`${summary.totalAssignments} atribuições no período`}
-            />
-            <SummaryCard
-              title="Seções com escala completa"
-              value={String(summary.completeTeams)}
-              description="Todas as escalas da seção estão completas no período selecionado"
-            />
-            <SummaryCard
-              title="Seções com escala incompleta"
-              value={String(summary.incompleteTeams)}
-              description={`${summary.alerts.length} alerta(s) de cobertura insuficiente`}
-            />
-            <SummaryCard
-              title="Seções sem escala"
-              value={String(summary.teamsWithoutEvents)}
-              description="Seções sem nenhum evento escalado no período filtrado"
-            />
-            <SummaryCard
-              title="Próximos eventos do período"
-              value={String(summary.upcomingEvents)}
-              description={summary.nextEventLabel}
-            />
-            <SummaryCard
-              title="Período em análise"
-              value={selectedPeriod.label}
-              description={hasAnySchedule ? 'A visualização está consolidada por seção, data, horário, evento e integrantes.' : 'Nenhuma escala consolidada disponível para o filtro atual.'}
-            />
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Pessoas escaladas por equipe</h2>
+            <p className="muted-text">Comparação visual do total de integrantes escalados por módulo no período selecionado.</p>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, minHeight: 220, paddingTop: 16, flexWrap: 'wrap' }}>
+              {moduleChartData.map((item) => {
+                const height = `${(item.value / maxModuleChartValue) * 180}px`;
+                return (
+                  <div key={item.id} style={{ flex: '1 1 96px', minWidth: 96, textAlign: 'center', maxWidth: 160 }}>
+                    <div style={{ fontSize: 12, marginBottom: 6 }}>{item.value}</div>
+                    <div
+                      title={`${item.label}: ${item.value}`}
+                      style={{
+                        height,
+                        minHeight: 4,
+                        borderRadius: '8px 8px 0 0',
+                        background: 'var(--primary)',
+                      }}
+                    />
+                    <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {item.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="muted-text" style={{ marginTop: 12, marginBottom: 0 }}>
+              Pessoas escaladas: <strong>{summary.totalPeople}</strong> | Atribuições: <strong>{summary.totalAssignments}</strong> | Seções completas: <strong>{summary.completeTeams}</strong> | Seções incompletas: <strong>{summary.incompleteTeams}</strong> | Seções sem escala: <strong>{summary.teamsWithoutEvents}</strong>
+            </p>
+            <p className="muted-text" style={{ marginTop: 8 }}>
+              Período em análise: <strong>{selectedPeriod.label}</strong>. {hasAnySchedule ? 'A visualização está consolidada por seção, data, horário, evento e integrantes.' : 'Nenhuma escala consolidada disponível para o filtro atual.'}
+            </p>
           </div>
         </section>
 
-        <section className="page-section">
-          <div className="grid-2">
-            <div className="card">
-              <h2 style={{ marginTop: 0 }}>Alertas globais</h2>
-              {isLoading ? <p>Carregando alertas...</p> : summary.alerts.length === 0 ? <p>Nenhuma escala incompleta no período selecionado.</p> : (
-                <ul className="principal-inline-list">
-                  {summary.alerts.map((alert) => (
-                    <li key={alert}>{alert}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
+        {false ? (
+          <section className="page-section">
             <div className="card">
               <h2 style={{ marginTop: 0 }}>Próximos eventos</h2>
-              {isLoading ? <p>Carregando próximos eventos...</p> : nextEvents.length === 0 ? <p>Nenhum próximo evento dentro do período selecionado.</p> : (
-                <ul className="principal-inline-list">
-                  {nextEvents.map((entry) => (
-                    <li key={`${entry.moduleId}-${entry.scheduleId}`}>
-                      <strong>{entry.moduleLabel}</strong>: {formatBrDate(entry.date)} às {entry.time} - {entry.eventName}
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         <section className="page-section">
           <div className="card">
@@ -436,7 +442,7 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
                 <section key={section.moduleId} className="principal-section-card">
                   <button
                     type="button"
-                    className="principal-section-toggle"
+                    className="principal-section-toggle button secondary"
                     onClick={() => toggleSection(section.moduleId)}
                     aria-expanded={expandedSections[section.moduleId] ? 'true' : 'false'}
                   >
@@ -519,6 +525,19 @@ export function PrincipalDashboardPage({ onOpenLogin }: { onOpenLogin: () => voi
                 </section>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="page-section">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Alertas globais</h2>
+            {isLoading ? <p>Carregando alertas...</p> : summary.alerts.length === 0 ? <p>Nenhuma escala incompleta no período selecionado.</p> : (
+              <ul className="principal-inline-list">
+                {summary.alerts.map((alert) => (
+                  <li key={alert}>{alert}</li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
       </main>

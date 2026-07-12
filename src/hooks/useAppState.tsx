@@ -162,6 +162,9 @@ function mapMemberRow(row: MemberRow, functions: Member['functions'] = []): Memb
 function mapMemberToRow(moduleId: AppModuleId, member: Member): MemberRow {
   return {
     ...member,
+    active: member.active ?? true,
+    functions: member.functions ?? [],
+    unavailability: member.unavailability ?? [],
     module_id: moduleId,
   };
 }
@@ -398,6 +401,7 @@ export function AppProvider({ children, moduleId }: { children: React.ReactNode;
       setErrorMessage(null);
       return result;
     } catch (error) {
+      console.error('Erro Supabase:', error);
       const message = error instanceof Error ? error.message : fallbackMessage;
       setErrorMessage(`${fallbackMessage} ${message}`.trim());
       return null;
@@ -405,51 +409,87 @@ export function AppProvider({ children, moduleId }: { children: React.ReactNode;
   }, []);
 
   const createMember = useCallback(async (member: Member) => {
-    const result = await withSupabase(async () => {
-      const { error } = await supabase!.from('members').insert(mapMemberToRow(moduleId, member));
-      if (error) throw error;
+    const normalizedMember: Member = {
+      ...member,
+      active: member.active ?? true,
+      functions: member.functions ?? [],
+      unavailability: member.unavailability ?? [],
+    };
 
-       const memberFunctionsRows = buildMemberFunctionsRows(moduleId, member);
-       if (memberFunctionsRows.length > 0) {
-        const { error: memberFunctionsError } = await supabase!.from('member_functions').insert(memberFunctionsRows);
-        if (memberFunctionsError) throw memberFunctionsError;
+    const result = await withSupabase(async () => {
+      try {
+        const { error } = await supabase!.from('members').insert(mapMemberToRow(moduleId, normalizedMember));
+        if (error) throw error;
+
+        const memberFunctionsRows = buildMemberFunctionsRows(moduleId, normalizedMember);
+        if (memberFunctionsRows.length > 0) {
+          const { error: memberFunctionsError } = await supabase!.from('member_functions').insert(memberFunctionsRows);
+          if (memberFunctionsError) throw memberFunctionsError;
+        }
+      } catch (error) {
+        console.error('Erro ao adicionar integrante:', error);
+        throw error;
       }
 
       return true;
     }, 'Não foi possível salvar o integrante no Supabase.');
 
-    if (!result) return false;
-    setMembers((current) => [...current, member]);
+    if (!result) {
+      console.error('Erro ao adicionar integrante:', {
+        member: normalizedMember,
+        moduleId,
+      });
+      return false;
+    }
+    setMembers((current) => [...current, normalizedMember]);
     return true;
   }, [moduleId, withSupabase]);
 
   const saveMember = useCallback(async (member: Member) => {
+    const normalizedMember: Member = {
+      ...member,
+      active: member.active ?? true,
+      functions: member.functions ?? [],
+      unavailability: member.unavailability ?? [],
+    };
+
     const result = await withSupabase(async () => {
-      const { error } = await supabase!
-        .from('members')
-        .update(mapMemberToRow(moduleId, member))
-        .eq('id', member.id)
-        .eq('module_id', moduleId);
-      if (error) throw error;
+      try {
+        const { error } = await supabase!
+          .from('members')
+          .update(mapMemberToRow(moduleId, normalizedMember))
+          .eq('id', normalizedMember.id)
+          .eq('module_id', moduleId);
+        if (error) throw error;
 
-      const { error: deleteFunctionsError } = await supabase!
-        .from('member_functions')
-        .delete()
-        .eq('member_id', member.id)
-        .eq('module_id', moduleId);
-      if (deleteFunctionsError) throw deleteFunctionsError;
+        const { error: deleteFunctionsError } = await supabase!
+          .from('member_functions')
+          .delete()
+          .eq('member_id', normalizedMember.id)
+          .eq('module_id', moduleId);
+        if (deleteFunctionsError) throw deleteFunctionsError;
 
-      const memberFunctionsRows = buildMemberFunctionsRows(moduleId, member);
-      if (memberFunctionsRows.length > 0) {
-        const { error: memberFunctionsError } = await supabase!.from('member_functions').insert(memberFunctionsRows);
-        if (memberFunctionsError) throw memberFunctionsError;
+        const memberFunctionsRows = buildMemberFunctionsRows(moduleId, normalizedMember);
+        if (memberFunctionsRows.length > 0) {
+          const { error: memberFunctionsError } = await supabase!.from('member_functions').insert(memberFunctionsRows);
+          if (memberFunctionsError) throw memberFunctionsError;
+        }
+      } catch (error) {
+        console.error('Erro ao salvar integrante:', error);
+        throw error;
       }
 
       return true;
     }, 'Não foi possível atualizar o integrante no Supabase.');
 
-    if (!result) return false;
-    setMembers((current) => current.map((item) => (item.id === member.id ? member : item)));
+    if (!result) {
+      console.error('Erro ao salvar integrante:', {
+        member: normalizedMember,
+        moduleId,
+      });
+      return false;
+    }
+    setMembers((current) => current.map((item) => (item.id === normalizedMember.id ? normalizedMember : item)));
     return true;
   }, [moduleId, withSupabase]);
 
@@ -457,24 +497,37 @@ export function AppProvider({ children, moduleId }: { children: React.ReactNode;
     const selected = members.find((member) => member.id === memberId);
     if (!selected) return false;
 
-    return saveMember({ ...selected, active: !selected.active });
-  }, [members, saveMember]);
+    const wasSaved = await saveMember({ ...selected, active: !selected.active });
+    if (!wasSaved) {
+      console.error('Erro ao ativar/inativar integrante:', { memberId, moduleId });
+    }
+    return wasSaved;
+  }, [members, moduleId, saveMember]);
 
   const deleteMember = useCallback(async (memberId: string) => {
     const result = await withSupabase(async () => {
-      const { error: deleteFunctionsError } = await supabase!
-        .from('member_functions')
-        .delete()
-        .eq('member_id', memberId)
-        .eq('module_id', moduleId);
-      if (deleteFunctionsError) throw deleteFunctionsError;
+      try {
+        const { error: deleteFunctionsError } = await supabase!
+          .from('member_functions')
+          .delete()
+          .eq('member_id', memberId)
+          .eq('module_id', moduleId);
+        if (deleteFunctionsError) throw deleteFunctionsError;
 
-      const { error } = await supabase!.from('members').delete().eq('id', memberId).eq('module_id', moduleId);
-      if (error) throw error;
+        const { error } = await supabase!.from('members').delete().eq('id', memberId).eq('module_id', moduleId);
+        if (error) throw error;
+      } catch (error) {
+        console.error('Erro ao excluir integrante:', error);
+        throw error;
+      }
+
       return true;
     }, 'Não foi possível deletar o integrante no Supabase.');
 
-    if (!result) return false;
+    if (!result) {
+      console.error('Erro ao excluir integrante:', { memberId, moduleId });
+      return false;
+    }
     setMembers((current) => current.filter((member) => member.id !== memberId));
     return true;
   }, [moduleId, withSupabase]);

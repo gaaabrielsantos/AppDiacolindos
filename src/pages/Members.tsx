@@ -3,6 +3,8 @@ import { Member, Unavailability } from '../types';
 import { getModuleFunctionConfig, getTeamFunctionLabel } from '../config/moduleFunctions';
 import { useAppState } from '../hooks/useAppState';
 import { useAccessControl } from '../hooks/useAccessControl';
+import { useModule } from '../hooks/useModule';
+import { AlertBanner } from '../components/AlertBanner';
 import { VIEWER_BLOCK_MESSAGE } from '../utils/access';
 
 const emptyMemberForm = (): Partial<Member> => ({
@@ -239,17 +241,21 @@ function MemberFunctionsFields({
 
 export function MembersPage() {
   const { isAdmin } = useAccessControl();
-  const { moduleId, members, createMember, saveMember, toggleMemberActive, deleteMember, eventRules, schedule } = useAppState();
+  const { moduleId } = useModule();
+  const { members, createMember, saveMember, toggleMemberActive, deleteMember, eventRules, schedule } = useAppState();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createDateSectionOpen, setCreateDateSectionOpen] = useState(false);
   const [createPeriodSectionOpen, setCreatePeriodSectionOpen] = useState(false);
 
   const [createForm, setCreateForm] = useState<Partial<Member>>(emptyMemberForm());
+  const [createNameError, setCreateNameError] = useState<string | null>(null);
   const [createDateRestriction, setCreateDateRestriction] = useState<RestrictionState>({ date: '', note: '' });
   const [createPeriodRestriction, setCreatePeriodRestriction] = useState<PeriodRestrictionState>({ from: '', to: '', note: '' });
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Member>>(emptyMemberForm());
+  const [editNameError, setEditNameError] = useState<string | null>(null);
+  const [memberActionError, setMemberActionError] = useState<string | null>(null);
   const [editDateRestriction, setEditDateRestriction] = useState<RestrictionState>({ date: '', note: '' });
   const [editPeriodRestriction, setEditPeriodRestriction] = useState<PeriodRestrictionState>({ from: '', to: '', note: '' });
   const [editDateSectionOpen, setEditDateSectionOpen] = useState(false);
@@ -262,6 +268,7 @@ export function MembersPage() {
 
   const resetCreateForm = (closeSection = false) => {
     setCreateForm(emptyMemberForm());
+    setCreateNameError(null);
     setCreateDateRestriction({ date: '', note: '' });
     setCreatePeriodRestriction({ from: '', to: '', note: '' });
     setCreateDateSectionOpen(false);
@@ -271,6 +278,7 @@ export function MembersPage() {
 
   const resetEditForm = () => {
     setEditForm(emptyMemberForm());
+    setEditNameError(null);
     setEditDateRestriction({ date: '', note: '' });
     setEditPeriodRestriction({ from: '', to: '', note: '' });
     setEditDateSectionOpen(false);
@@ -283,7 +291,12 @@ export function MembersPage() {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
-    if (!createForm.name?.trim()) return;
+    if (!createForm.name?.trim()) {
+      setCreateNameError('Informe o nome do integrante.');
+      return;
+    }
+    setCreateNameError(null);
+    setMemberActionError(null);
 
     const payload: Member = {
       id: `member-${crypto.randomUUID()}`,
@@ -297,7 +310,10 @@ export function MembersPage() {
     };
 
     const wasCreated = await createMember(payload);
-    if (!wasCreated) return;
+    if (!wasCreated) {
+      setMemberActionError('Não foi possível salvar o integrante. Verifique os dados e tente novamente.');
+      return;
+    }
     resetCreateForm(true);
   };
 
@@ -314,6 +330,8 @@ export function MembersPage() {
     const selected = members.find((member) => member.id === memberId);
     if (!selected) return;
 
+    setEditNameError(null);
+    setMemberActionError(null);
     setEditingId(memberId);
     setEditForm({ ...selected });
     setEditDateRestriction({ date: '', note: '' });
@@ -325,7 +343,13 @@ export function MembersPage() {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
-    if (!editingId || !editForm.name?.trim()) return;
+    if (!editingId) return;
+    if (!editForm.name?.trim()) {
+      setEditNameError('Informe o nome do integrante.');
+      return;
+    }
+    setEditNameError(null);
+    setMemberActionError(null);
 
     const payload: Member = {
       id: editingId,
@@ -339,7 +363,10 @@ export function MembersPage() {
     };
 
     const wasSaved = await saveMember(payload);
-    if (!wasSaved) return;
+    if (!wasSaved) {
+      setMemberActionError('Não foi possível salvar o integrante. Verifique os dados e tente novamente.');
+      return;
+    }
     resetEditForm();
   };
 
@@ -348,7 +375,11 @@ export function MembersPage() {
       alert(VIEWER_BLOCK_MESSAGE);
       return;
     }
-    await toggleMemberActive(id);
+    setMemberActionError(null);
+    const wasToggled = await toggleMemberActive(id);
+    if (!wasToggled) {
+      setMemberActionError('Não foi possível atualizar o integrante. Tente novamente.');
+    }
   };
 
   const handleDeleteMember = async (memberId: string) => {
@@ -362,7 +393,11 @@ export function MembersPage() {
       return;
     }
     if (!confirm('Tem certeza que deseja deletar este integrante? Essa ação não poderá ser desfeita.')) return;
-    await deleteMember(memberId);
+    setMemberActionError(null);
+    const wasDeleted = await deleteMember(memberId);
+    if (!wasDeleted) {
+      setMemberActionError('Não foi possível excluir o integrante. Tente novamente.');
+    }
   };
 
   return (
@@ -375,6 +410,8 @@ export function MembersPage() {
         <section className="page-section">
           <div className="card">
             <h2 style={{ marginTop: 0 }}>Lista de integrantes</h2>
+
+            {memberActionError ? <AlertBanner message={memberActionError} /> : null}
 
             {members.length === 0 ? (
               <p className="muted-text">Nenhum integrante cadastrado ainda.</p>
@@ -442,10 +479,14 @@ export function MembersPage() {
                               Nome (obrigatório)
                               <input
                                 value={editForm.name ?? ''}
-                                onChange={(event) => setEditForm((prev) => ({ ...prev, name: event.target.value }))}
+                                onChange={(event) => {
+                                  setEditNameError(null);
+                                  setEditForm((prev) => ({ ...prev, name: event.target.value }));
+                                }}
                                 disabled={!isAdmin}
                                 title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                               />
+                              {editNameError ? <small className="input-error-text">{editNameError}</small> : null}
                             </label>
                             <label>
                               Apelido (opcional)
@@ -589,10 +630,14 @@ export function MembersPage() {
                     Nome (obrigatório)
                     <input
                       value={createForm.name ?? ''}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+                      onChange={(event) => {
+                        setCreateNameError(null);
+                        setCreateForm((prev) => ({ ...prev, name: event.target.value }));
+                      }}
                       disabled={!isAdmin}
                       title={!isAdmin ? VIEWER_BLOCK_MESSAGE : undefined}
                     />
+                    {createNameError ? <small className="input-error-text">{createNameError}</small> : null}
                   </label>
                   <label>
                     Apelido (opcional)

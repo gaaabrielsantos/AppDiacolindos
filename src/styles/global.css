@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   font-family: Avenir, "Avenir Next", Arial, sans-serif;
+  --ease-mac: cubic-bezier(0.22, 1, 0.36, 1);
   --color-primary: #007a3d;
   --bg-page: #f7f9f3;
   --bg-card: #ffffff;
@@ -118,8 +119,8 @@ body {
   background: var(--bg-page);
   color: var(--text-primary);
   transition:
-    background 0.25s ease-in-out,
-    color 0.25s ease-in-out;
+    background 0.28s var(--ease-mac),
+    color 0.28s var(--ease-mac);
 }
 
 a {
@@ -192,7 +193,7 @@ img {
   border-radius: 16px;
   box-shadow: var(--shadow);
   padding: 18px;
-  transition: all 0.25s ease-in-out;
+  transition: all 0.28s var(--ease-mac);
   color: var(--text-primary);
   overflow-wrap: anywhere;
   min-width: 0;
@@ -218,12 +219,7 @@ img {
   color: var(--button-primary-text);
   border: 1px solid transparent;
   font-weight: 700;
-  transition:
-    transform 0.25s ease-in-out,
-    filter 0.25s ease-in-out,
-    background 0.25s ease-in-out,
-    border-color 0.25s ease-in-out,
-    color 0.25s ease-in-out;
+  transition: all 0.28s var(--ease-mac);
 }
 
 .button:hover {
@@ -240,7 +236,7 @@ img {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.28s var(--ease-mac);
   padding: 0.7rem 1.2rem;
   font-family: Avenir, "Avenir Next", Arial, sans-serif;
   font-weight: 700;
@@ -276,12 +272,12 @@ textarea,
 .overview-muted,
 .export-card,
 .export-actions {
-  transition: all 0.25s ease-in-out;
+  transition: all 0.28s var(--ease-mac);
 }
 
 input[type="checkbox"] {
   accent-color: var(--primary);
-  transition: all 0.25s ease-in-out;
+  transition: all 0.28s var(--ease-mac);
 }
 
 .small-button {
@@ -518,9 +514,9 @@ input[type="checkbox"] {
   opacity: 0;
   transform: translateY(-6px);
   transition:
-    grid-template-rows 0.25s ease,
-    opacity 0.25s ease,
-    transform 0.25s ease;
+    grid-template-rows 0.28s var(--ease-mac),
+    opacity 0.28s var(--ease-mac),
+    transform 0.28s var(--ease-mac);
 }
 
 .restriction-collapsible.open {
@@ -542,9 +538,9 @@ input[type="checkbox"] {
   background: var(--color-primary);
   color: var(--button-primary-text);
   transition:
-    transform 0.25s ease,
-    filter 0.25s ease,
-    box-shadow 0.25s ease;
+    transform 0.28s var(--ease-mac),
+    filter 0.28s var(--ease-mac),
+    box-shadow 0.28s var(--ease-mac);
 }
 
 .add-toggle-button.open {
@@ -557,9 +553,9 @@ input[type="checkbox"] {
   opacity: 0;
   transform: translateY(-8px);
   transition:
-    grid-template-rows 0.3s ease,
-    opacity 0.25s ease,
-    transform 0.25s ease;
+    grid-template-rows 0.3s var(--ease-mac),
+    opacity 0.28s var(--ease-mac),
+    transform 0.28s var(--ease-mac);
 }
 
 .collapsible-content.open {
@@ -653,9 +649,9 @@ input[type="checkbox"] {
   overflow: hidden;
   transform: translateY(-8px);
   transition:
-    max-height 0.3s ease,
-    opacity 0.25s ease,
-    transform 0.25s ease;
+    max-height 0.3s var(--ease-mac),
+    opacity 0.28s var(--ease-mac),
+    transform 0.28s var(--ease-mac);
   pointer-events: none;
 }
 
@@ -689,7 +685,13 @@ input[type="checkbox"] {
   line-height: 1;
   padding: 2px 4px;
   border-radius: 6px;
-  transition: all 0.25s ease-in-out;
+  transition: all 0.28s var(--ease-mac);
+}
+
+.input-error-text {
+  color: var(--danger);
+  font-weight: 700;
+  margin-top: -2px;
 }
 
 .scale-event-preview:hover .edit-icon-button,
@@ -774,6 +776,7 @@ input[type="checkbox"] {
   align-items: center;
   z-index: 99;
   padding: 14px;
+  animation: modalFadeIn 0.22s var(--ease-mac);
 }
 
 .modal-content {
@@ -784,6 +787,7 @@ input[type="checkbox"] {
   background: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
+  animation: modalCardIn 0.28s var(--ease-mac);
 }
 
 .login-overlay {
@@ -801,6 +805,7 @@ input[type="checkbox"] {
   -webkit-backdrop-filter: blur(18px);
   z-index: 180;
   padding: 16px;
+  animation: modalFadeIn 0.24s var(--ease-mac);
 }
 
 .login-card {
@@ -814,6 +819,8 @@ input[type="checkbox"] {
   display: grid;
   gap: 14px;
   backdrop-filter: none;
+  transform-origin: center;
+  animation: loginCardIn 0.3s var(--ease-mac);
 }
 
 .login-card h1 {
@@ -847,9 +854,7 @@ input[type="checkbox"] {
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: var(--button-secondary-bg);
-  color: var(--text-primary);
+  padding: 0;
 }
 
 .login-error {
@@ -960,6 +965,54 @@ input[type="checkbox"] {
   gap: 18px;
 }
 
+.principal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.principal-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.principal-tab {
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition:
+    color 0.28s var(--ease-mac),
+    border-color 0.28s var(--ease-mac);
+}
+
+.principal-tab:hover {
+  color: var(--text-primary);
+}
+
+.principal-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.principal-theme-toggle {
+  min-height: 40px;
+  padding: 4px 8px;
+}
+
+.principal-theme-toggle .theme-switch {
+  width: 66px;
+  height: 32px;
+}
+
 .principal-section-card {
   display: grid;
   gap: 14px;
@@ -983,9 +1036,8 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0;
-  border: none;
-  background: transparent;
+  padding: 10px 12px;
+  border-radius: 12px;
   color: inherit;
   text-align: left;
 }
@@ -1015,11 +1067,46 @@ input[type="checkbox"] {
   display: grid;
   grid-template-rows: 0fr;
   transition:
-    grid-template-rows 0.28s ease,
-    opacity 0.28s ease,
-    margin-top 0.28s ease;
+    grid-template-rows 0.28s var(--ease-mac),
+    opacity 0.28s var(--ease-mac),
+    margin-top 0.28s var(--ease-mac);
   opacity: 0;
   margin-top: 0;
+}
+
+.modal-close-button {
+  float: right;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes loginCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .principal-section-body.is-open {
@@ -1198,6 +1285,21 @@ input[type="checkbox"] {
 }
 
 @media (max-width: 720px) {
+  .principal-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .principal-tabs {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .principal-tab {
+    white-space: nowrap;
+  }
+
   .principal-entry-meta {
     grid-template-columns: 1fr;
   }

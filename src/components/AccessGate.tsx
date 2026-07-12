@@ -53,7 +53,7 @@ export function AccessGate({
       onClick={handleContinueViewing}
     >
       <div className="login-card" onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="login-close-button" aria-label="Fechar login" onClick={handleContinueViewing}>✕</button>
+        <button type="button" className="login-close-button button secondary small-button" aria-label="Fechar login" onClick={handleContinueViewing}>✕</button>
         <h1>IPB MAIRINQUE</h1>
         <p>Acesse como administrador para liberar edição completa do sistema.</p>
 

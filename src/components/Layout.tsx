@@ -15,7 +15,7 @@ const menuItems: Array<{ label: string; path: ModuleRouteSegment }> = [
 
 export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenLogin: () => void }) {
   const location = useLocation();
-  const { accessMode, isAdmin, logout } = useAccessControl();
+  const { accessMode, logout } = useAccessControl();
   const { moduleId } = useModule();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 1024px)').matches);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,6 +52,11 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
 
   const toggleTheme = () => {
     setTheme((current) => (current === 'light' ? 'dark' : 'light'));
+  };
+
+  const handleSwitchUser = async () => {
+    await logout();
+    onOpenLogin();
   };
 
   const toggleSidebar = () => {
@@ -121,14 +126,19 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
         {sidebarOpen ? (
           <div className="sidebar-access-group">
             <span className="sidebar-access-item" aria-live="polite">
-              {accessMode === 'admin' ? 'Modo administrador' : 'Modo visualização'}
+              {accessMode === 'admin' ? 'Modo administrador' : accessMode === 'principal' ? 'Modo principal' : 'Modo visualização'}
             </span>
-            {isAdmin ? (
-              <button type="button" className="sidebar-access-item" onClick={logout}>
-                Sair
-              </button>
+            {accessMode !== 'viewer' ? (
+              <>
+                <button type="button" className="sidebar-access-item button secondary small-button" onClick={() => void logout()}>
+                  Sair
+                </button>
+                <button type="button" className="sidebar-access-item button small-button" onClick={() => void handleSwitchUser()}>
+                  Trocar usuário
+                </button>
+              </>
             ) : (
-              <button type="button" className="sidebar-access-item" onClick={onOpenLogin}>
+              <button type="button" className="sidebar-access-item button secondary small-button" onClick={onOpenLogin}>
                 Entrar como administrador
               </button>
             )}
@@ -161,7 +171,7 @@ export function Layout({ children, onOpenLogin }: { children: ReactNode; onOpenL
           </div>
         ) : null}
       </aside>
-      {isMobile && sidebarOpen ? <button className="sidebar-overlay" aria-label="Fechar menu" onClick={() => setSidebarOpen(false)} /> : null}
+      {isMobile && sidebarOpen ? <button type="button" className="sidebar-overlay button secondary" aria-label="Fechar menu" onClick={() => setSidebarOpen(false)} /> : null}
       <main className="content">
         <header className="content-header">
           {isMobile ? (
